@@ -194,7 +194,6 @@ function toast(t,e){const d=document.createElement('div');d.className='toast'+(e
 async function connect(){
   if(!navigator.bluetooth){setConn(false,diag(),true);return}
   try{
-    if(navigator.bluetooth.getAvailability&&!(await navigator.bluetooth.getAvailability())){setConn(false,'Bluetooth je vypnutý nebo ho prohlížeč nemůže použít – zapněte Bluetooth (u Androidu 11 a starších i polohu)',true);return}
     dev=await navigator.bluetooth.requestDevice($('allDev').checked?{acceptAllDevices:true,optionalServices:[SVC]}:{filters:[{namePrefix:'EWR'}],optionalServices:[SVC]});
     const sleep=ms=>new Promise(r=>setTimeout(r,ms));
     const lim=(pr,ms,what)=>Promise.race([pr,new Promise((_,rej)=>setTimeout(()=>rej(new Error('vypršel čas – '+what)),ms))]);
