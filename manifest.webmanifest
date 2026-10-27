@@ -1,0 +1,17 @@
+{
+  "name": "EWR-TD odečet",
+  "short_name": "EWR-TD",
+  "description": "Příjem wM-Bus telegramů z EWR-TD přes Bluetooth, tabulka měřidel a stav zařízení.",
+  "lang": "cs",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f4f5f7",
+  "theme_color": "#0b6bcb",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
