@@ -71,6 +71,7 @@ details pre{margin:0;padding:10px 12px;border-top:1px solid var(--line);max-heig
   <span id="st" class="status"><span class="dot"></span><span id="stText">Odpojeno</span></span>
   <button id="bConn" class="primary">Připojit EWR-TD…</button>
   <button id="bDisc" disabled>Odpojit</button>
+  <label title="Když se EWR-TD v seznamu neobjeví, zobrazit všechna Bluetooth zařízení v okolí"><input type="checkbox" id="allDev"> všechna zařízení</label>
   <span class="spacer"></span>
   <button id="bDemo" title="Simulované zařízení bez Bluetooth">Demo</button>
 </header>
@@ -191,18 +192,37 @@ function setConn(on,txt,err){$('st').className='status'+(on?' on':'');$('stText'
   if(!on){$('bStart').disabled=true;$('bStop').disabled=true}}
 function toast(t,e){const d=document.createElement('div');d.className='toast'+(e?' e':'');d.textContent=t;$('toasts').appendChild(d);setTimeout(()=>d.remove(),5000)}
 async function connect(){
-  if(!navigator.bluetooth){setConn(false,'Prohlížeč nepodporuje Web Bluetooth – otevřete v Chrome nebo Edge',true);return}
+  if(!navigator.bluetooth){setConn(false,diag(),true);return}
   try{
-    dev=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'EWR'}],optionalServices:[SVC]});
-    setConn(false,'Připojuji '+dev.name+'…');
+    if(navigator.bluetooth.getAvailability&&!(await navigator.bluetooth.getAvailability())){setConn(false,'Bluetooth je vypnutý nebo ho prohlížeč nemůže použít – zapněte Bluetooth (u Androidu 11 a starších i polohu)',true);return}
+    dev=await navigator.bluetooth.requestDevice($('allDev').checked?{acceptAllDevices:true,optionalServices:[SVC]}:{filters:[{namePrefix:'EWR'}],optionalServices:[SVC]});
+    const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+    const lim=(pr,ms,what)=>Promise.race([pr,new Promise((_,rej)=>setTimeout(()=>rej(new Error('vypršel čas – '+what)),ms))]);
+    let s=null,lastErr=null;
+    for(let i=1;i<=3&&!s;i++){
+      try{
+        setConn(false,`Připojuji ${dev.name} (pokus ${i}/3)…`);
+        const g=await lim(dev.gatt.connect(),12000,'připojení');
+        await sleep(600);
+        setConn(false,'Hledám službu zařízení…');
+        s=await lim(g.getPrimaryService(SVC),8000,'hledání služby');
+      }catch(e){lastErr=e;try{dev.gatt.disconnect()}catch(x){}await sleep(1200)}
+    }
+    if(!s)throw lastErr||new Error('nepodařilo se připojit');
     dev.addEventListener('gattserverdisconnected',onDisconnected);
-    const g=await dev.gatt.connect(),s=await g.getPrimaryService(SVC);
-    const chData=await s.getCharacteristic(CH_DATA);chStat=await s.getCharacteristic(CH_STAT);chCmd=await s.getCharacteristic(CH_CMD);
+    setConn(false,'Zapínám příjem dat…');
+    const chData=await lim(s.getCharacteristic(CH_DATA),5000,'charakteristika dat');chStat=await lim(s.getCharacteristic(CH_STAT),5000,'charakteristika stavu');chCmd=await lim(s.getCharacteristic(CH_CMD),5000,'charakteristika povelů');
     chData.addEventListener('characteristicvaluechanged',e=>{const v=e.target.value;onFrame(new Uint8Array(v.buffer,v.byteOffset,v.byteLength))});
-    await chData.startNotifications();
+    await lim(chData.startNotifications(),8000,'zapnutí notifikací');
     $('cName').textContent=dev.name;setConn(true,'Připojeno');
     await readStatus();statTimer=setInterval(readStatus,15000);
-  }catch(e){if(e.name!=='NotFoundError')setConn(false,'Chyba: '+e.message,true)}
+  }catch(e){
+    if(e.name==='NotFoundError'&&/cancel/i.test(e.message))setConn(false,'Výběr zrušen. Neobjevilo se EWR-TD? Zkuste „všechna zařízení“.',false);
+    else{setConn(false,'Nepřipojeno: '+e.message+'. Zkuste: odpárovat EWR-TD v nastavení Bluetooth telefonu, vynutit ukončení aplikace EWM, vypnout a zapnout Bluetooth.',true);try{dev&&dev.gatt.disconnect()}catch(x){}}}
+}
+function diag(){
+  if(!window.isSecureContext)return 'Bluetooth nejde použít: stránka není otevřená přes https:// (na Androidu nefunguje otevření souboru, použijte webovou adresu).';
+  return 'Tento prohlížeč nepodporuje Web Bluetooth. Použijte Chrome (Android, Windows) nebo Edge. Prohlížeč: '+navigator.userAgent.replace(/^Mozilla\/5\.0 /,'').slice(0,90);
 }
 function onDisconnected(){
   clearInterval(statTimer);chStat=chCmd=null;
@@ -323,7 +343,7 @@ function startDemo(){isDemo=true;$('cName').textContent='EWR-TD (demo)';setConn(
   demoTimer=setInterval(()=>{if(!demo.rx)return;demo.ok++;if(Math.random()<.04)demo.crc++;demo.bit+=Math.floor(Math.random()*2);if(Math.random()<.02&&demo.bat>5)demo.bat--;onFrame(demoFrame())},250)}
 function stopDemo(){clearInterval(demoTimer);clearInterval(statTimer);isDemo=false;$('bDemo').textContent='Demo';setConn(false,'Odpojeno')}
 $('bDemo').onclick=()=>isDemo?stopDemo():startDemo();
-if(!navigator.bluetooth)setConn(false,'Web Bluetooth není k dispozici – otevřete v Chrome (Android, Windows) nebo Edge',true);
+if(!navigator.bluetooth)setConn(false,diag(),true);
 
 // ===== Telefon: displej nezhasne, dokud běží příjem =====
 let wakeLock=null;
