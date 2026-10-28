@@ -68,11 +68,11 @@ main>*{min-width:0}
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
 .tab{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;padding:8px 14px;font-weight:600;color:var(--muted)}
 .tab.sel{color:var(--fg);border-bottom-color:var(--acc)}
-.form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto auto;gap:10px;padding:12px;align-items:end;border-bottom:1px solid var(--line)}
+.form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto auto;gap:10px;padding:12px;align-items:end;border-bottom:1px solid var(--line)}
 .form label{display:grid;gap:4px;font-size:12px}
 .form input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-width:0}
 .big{padding:10px 16px;font-size:15px;font-weight:600}
-@media (max-width:900px){.form{grid-template-columns:repeat(2,minmax(0,1fr))}.form .big,.form #iManual{grid-column:span 2}}
+@media (max-width:700px){.form{grid-template-columns:repeat(3,minmax(0,1fr))}.form .big,.form #iManual{grid-column:span 3}}
 .okb{color:var(--ok);font-weight:700}.waitb{color:var(--muted)}
 #itbl tr.ok td{background:color-mix(in srgb,var(--ok) 9%,transparent)}
 button.x{border:0;background:none;padding:0 6px;color:var(--muted);font-size:16px}
@@ -133,11 +133,10 @@ button.x:hover{color:var(--err)}
         <label>Dům<input id="iHouse" list="dlHouse" placeholder="např. Lipová 12" autocomplete="off"></label>
         <label>Byt<input id="iFlat" list="dlFlat" placeholder="např. 5" autocomplete="off"></label>
         <label>Místnost<input id="iRoom" list="dlRoom" placeholder="např. koupelna" autocomplete="off"></label>
-        <label>Výrobce modulu<input id="iMaker" list="dlMaker" placeholder="např. Apator" autocomplete="off"></label>
         <button id="iScan" class="primary big">Naskenovat štítek</button>
         <button id="iManual">Zadat ručně</button>
       </div>
-      <datalist id="dlMaker"></datalist><datalist id="dlHouse"></datalist><datalist id="dlFlat"></datalist><datalist id="dlRoom"></datalist>
+      <datalist id="dlHouse"></datalist><datalist id="dlFlat"></datalist><datalist id="dlRoom"></datalist>
       <div class="chips" id="iHouses"></div>
       <div class="scroll">
         <table id="itbl"><thead><tr>
@@ -454,9 +453,9 @@ const loc=r=>[r.house,r.flat&&('byt '+r.flat),r.room].filter(Boolean).join(' · 
 function iSave(){safe(()=>localStorage.setItem('ewrtd_install',JSON.stringify(installs)))}
 function iLoad(){const d=safe(()=>JSON.parse(localStorage.getItem('ewrtd_install')||'[]'),[]);
   installs=d.map(r=>Object.assign(r,{scanned:new Date(r.scanned),first:r.first?new Date(r.first):null,last:r.last?new Date(r.last):null}));
-  const l=safe(()=>JSON.parse(localStorage.getItem('ewrtd_loc')||'{}'),{});$('iHouse').value=l.house||'';$('iFlat').value=l.flat||'';$('iRoom').value=l.room||'';$('iMaker').value=l.maker||''}
-function saveLoc(){safe(()=>localStorage.setItem('ewrtd_loc',JSON.stringify({house:$('iHouse').value.trim(),flat:$('iFlat').value.trim(),room:$('iRoom').value.trim(),maker:$('iMaker').value.trim()})))}
-['iHouse','iFlat','iRoom','iMaker'].forEach(id=>$(id).addEventListener('change',saveLoc));
+  const l=safe(()=>JSON.parse(localStorage.getItem('ewrtd_loc')||'{}'),{});$('iHouse').value=l.house||'';$('iFlat').value=l.flat||'';$('iRoom').value=l.room||''}
+function saveLoc(){safe(()=>localStorage.setItem('ewrtd_loc',JSON.stringify({house:$('iHouse').value.trim(),flat:$('iFlat').value.trim(),room:$('iRoom').value.trim()})))}
+['iHouse','iFlat','iRoom'].forEach(id=>$(id).addEventListener('change',saveLoc));
 
 // číslo ze štítku -> rádiové ID (8 číslic, zleva nuly: "6739735" -> "06739735")
 function toRadioId(raw){
@@ -587,12 +586,12 @@ function onCode(rawVal,fmt){
 function showResult(rawVal,fmt){
   const id=toRadioId(rawVal);
   if(!id){$('scInfo').textContent=`Kód „${rawVal}“ neobsahuje číslo měřidla. Zkuste jiný kód nebo zadejte ručně.`;if(scanStream)openScanner('radio');return}
-  const cur={house:$('iHouse').value.trim(),flat:$('iFlat').value.trim(),room:$('iRoom').value.trim(),maker:$('iMaker').value.trim()};
+  const cur={house:$('iHouse').value.trim(),flat:$('iFlat').value.trim(),room:$('iRoom').value.trim(),maker:makerFromCode(rawVal)};
   pending={id,raw:String(rawVal),...cur};
   stopCamera();$('scWrap').hidden=true;$('scManualRow').hidden=true;$('scRes').hidden=false;$('scTitle').textContent='Kontrola před uložením';
   $('scInfo').textContent=fmt?'Přečteno ('+fmt.replace('_',' ')+').':'Zadáno ručně.';
   $('rId').textContent=id;$('rRaw').textContent='na štítku: '+pending.raw;
-  $('rLoc').innerHTML=(loc(cur)?'Místo: <b>'+esc(loc(cur))+'</b>':'<span class="warn">Místo není vyplněné.</span>')+(cur.maker?'<br>Výrobce modulu: <b>'+esc(cur.maker)+'</b>':'');
+  $('rLoc').innerHTML=(loc(cur)?'Místo: <b>'+esc(loc(cur))+'</b>':'<span class="warn">Místo není vyplněné.</span>')+(cur.maker?'<br>Výrobce podle kódu: <b>'+esc(cur.maker)+'</b>':'');
   const ex=installs.find(r=>r.id===id);
   $('rWarn').hidden=!ex;if(ex)$('rWarn').textContent=`Toto ID už je přiřazené: ${loc(ex)||'bez místa'} (${dtm(ex.scanned)}). Uložením se přesune sem.`;
   $('rSerial').value=ex&&ex.serial?ex.serial:'';
@@ -613,12 +612,20 @@ function savePending(next){
 // ===== Tabulka montáže =====
 let iDirty=true;
 const norm=x=>String(x||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-// výrobce: z telegramu (spolehlivé) má přednost před ručně zadaným; nesoulad se zvýrazní
+// výrobce: z telegramu (spolehlivé), jinak z obsahu kódu, pokud v něm je; nesoulad se zvýrazní
 function makerCell(r){
   const tel=r.man?(MAN[r.man]||r.man):'',typ=r.man?' '+esc(typeName(r.type)):'';
-  if(!tel)return r.maker?esc(r.maker)+' <span style="color:var(--muted)">(zadáno)</span>':'';
+  if(!tel)return r.maker?esc(r.maker)+' <span style="color:var(--muted)">(ze štítku)</span>':'<span class="waitb">doplní se z telegramu</span>';
   const bad=r.maker&&norm(r.maker)!==norm(tel)&&norm(r.maker)!==norm(r.man);
-  return esc(tel)+typ+(bad?` <span class="flag w" title="Zadaný výrobce nesouhlasí s telegramem">zadáno: ${esc(r.maker)}</span>`:'');
+  return esc(tel)+typ+(bad?` <span class="flag w" title="Výrobce v kódu nesouhlasí s telegramem">štítek: ${esc(r.maker)}</span>`:'');
+}
+// pokud kód obsahuje zkratku nebo název výrobce (např. "APA", "Kamstrup"), převezme se
+function makerFromCode(raw){
+  const t=String(raw||'').toUpperCase();
+  for(const name of Object.values(MAN)){const w=name.toUpperCase().split(' ')[0];if(w.length>=4&&t.includes(w))return name}
+  const m=t.match(/(?:^|[^A-Z])([A-Z]{3})(?=[^A-Z]|$)/g)||[];
+  for(const x of m){const c=x.replace(/[^A-Z]/g,'');if(MAN[c])return MAN[c]}
+  return '';
 }
 function iRender(){
   if(!iDirty)return;iDirty=false;
@@ -633,7 +640,7 @@ function iRender(){
   installs.forEach(r=>r.fresh=false);
   // datalisty z dříve zadaných míst
   const uniq=k=>[...new Set(installs.map(r=>r[k]).filter(Boolean))].slice(0,50).map(v=>`<option value="${esc(v)}">`).join('');
-  $('dlHouse').innerHTML=uniq('house');$('dlMaker').innerHTML=[...new Set([...installs.map(r=>r.maker).filter(Boolean),...Object.values(MAN)])].map(v=>`<option value="${esc(v)}">`).join('');$('dlFlat').innerHTML=uniq('flat');$('dlRoom').innerHTML=uniq('room');
+  $('dlHouse').innerHTML=uniq('house');$('dlFlat').innerHTML=uniq('flat');$('dlRoom').innerHTML=uniq('room');
   // nepřiřazená měřidla v dosahu
   const ids=new Set(installs.map(r=>r.id));
   const un=[...meters.values()].filter(m=>!ids.has(m.id)).sort((a,b)=>(b.rssi??-999)-(a.rssi??-999));
@@ -666,8 +673,8 @@ $('scFocus').oninput=()=>{try{scanStream.getVideoTracks()[0].applyConstraints({a
 $('scAF').onclick=()=>{try{scanStream.getVideoTracks()[0].applyConstraints({advanced:[{focusMode:'continuous'}]})}catch(e){}};
 $('scZoom').onclick=()=>{const i=ZOOMS.indexOf(zoomLevel);setZoom(ZOOMS.at((i+1)%ZOOMS.length));safe(()=>localStorage.setItem('ewrtd_zoom',String(zoomLevel)))};
 $('scTorch').onclick=async()=>{try{torchOn=!torchOn;await scanStream.getVideoTracks()[0].applyConstraints({advanced:[{torch:torchOn}]})}catch(e){}};
-$('iCsv').onclick=()=>download('montaz_'+stamp()+'.csv',['dum;byt;mistnost;radiove_id;cislo_vodomeru;vyrobce_zadany;vyrobce_z_telegramu;typ;stav;naskenovano;prvni_telegram;posledni_telegram;pocet_telegramu;rssi_dbm;kod_ze_stitku']
-  .concat(installs.slice().reverse().map(r=>[r.house,r.flat,r.room,r.id,r.serial,r.maker,r.man?(MAN[r.man]||r.man):'',typeName(r.type),r.first?'vysila':'ceka',dtm(r.scanned),dtm(r.first),dtm(r.last),r.count||0,r.rssi??'',r.raw].map(v=>String(v??'').replace(/;/g,',')).join(';'))));
+$('iCsv').onclick=()=>download('montaz_'+stamp()+'.csv',['dum;byt;mistnost;radiove_id;cislo_vodomeru;vyrobce;zdroj_vyrobce;typ;stav;naskenovano;prvni_telegram;posledni_telegram;pocet_telegramu;rssi_dbm;kod_ze_stitku']
+  .concat(installs.slice().reverse().map(r=>[r.house,r.flat,r.room,r.id,r.serial,r.man?(MAN[r.man]||r.man):(r.maker||''),r.man?'telegram':(r.maker?'stitek':''),typeName(r.type),r.first?'vysila':'ceka',dtm(r.scanned),dtm(r.first),dtm(r.last),r.count||0,r.rssi??'',r.raw].map(v=>String(v??'').replace(/;/g,',')).join(';'))));
 $('iClr').onclick=()=>{if(confirm('Vymazat celý seznam montáže? Nejdřív si ho případně vyexportujte.')){installs=[];iSave();iDirty=true}};
 
 // ===== Záložky =====
