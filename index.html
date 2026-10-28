@@ -70,6 +70,7 @@ main>*{min-width:0}
 .tab.sel{color:var(--fg);border-bottom-color:var(--acc)}
 .form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto auto;gap:10px;padding:12px;align-items:end;border-bottom:1px solid var(--line)}
 .form label{display:grid;gap:4px;font-size:12px}
+.form select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-width:0}
 .form input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-width:0}
 .big{padding:10px 16px;font-size:15px;font-weight:600}
 @media (max-width:700px){.form{grid-template-columns:repeat(3,minmax(0,1fr))}.form .big,.form #iManual{grid-column:span 3}}
@@ -78,6 +79,9 @@ main>*{min-width:0}
 button.x{border:0;background:none;padding:0 6px;color:var(--muted);font-size:16px}
 button.x:hover{color:var(--err)}
 .edit{cursor:pointer;border-bottom:1px dashed var(--muted)}
+td.ed{cursor:text}
+td.ed:hover{background:color-mix(in srgb,var(--acc) 8%,transparent)}
+td.ed input,td.ed select{font:inherit;color:var(--fg);background:var(--panel);border:1px solid var(--acc);border-radius:4px;padding:3px 6px;width:100%;min-width:90px}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10;display:flex;align-items:center;justify-content:center;padding:12px}
 .modal[hidden]{display:none}
 .mbox{background:var(--panel);border-radius:12px;width:min(560px,100%);max-height:100%;overflow:auto;display:grid}
@@ -88,6 +92,8 @@ button.x:hover{color:var(--err)}
 .result{padding:12px;display:grid;gap:10px;border-top:1px solid var(--line)}
 .result .rid{font:700 26px Consolas,ui-monospace,monospace}
 .result input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%}
+#rCand{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+#rCand button.sel{border-color:var(--acc);color:var(--acc);font-weight:700}
 .warnbox{background:color-mix(in srgb,var(--warn) 15%,transparent);color:var(--warn);border-radius:6px;padding:8px 10px;font-weight:600}
 </style>
 </head>
@@ -132,7 +138,7 @@ button.x:hover{color:var(--err)}
       <div class="form">
         <label>Dům<input id="iHouse" list="dlHouse" placeholder="např. Lipová 12" autocomplete="off"></label>
         <label>Byt<input id="iFlat" list="dlFlat" placeholder="např. 5" autocomplete="off"></label>
-        <label>Místnost<input id="iRoom" list="dlRoom" placeholder="např. koupelna" autocomplete="off"></label>
+        <label>Místnost<select id="iRoom"></select></label>
         <button id="iScan" class="primary big">Naskenovat štítek</button>
         <button id="iManual">Zadat ručně</button>
       </div>
@@ -140,7 +146,7 @@ button.x:hover{color:var(--err)}
       <div class="chips" id="iHouses"></div>
       <div class="scroll">
         <table id="itbl"><thead><tr>
-          <th>Dům</th><th>Byt</th><th>Místnost</th><th>Rádiové ID</th><th>Č. vodoměru</th><th>Výrobce / typ</th><th>Stav</th><th>Naskenováno</th><th>1. telegram</th><th class="num">RSSI</th><th></th>
+          <th>Dům</th><th>Byt</th><th>Místnost</th><th>Rádiové ID</th><th>Č. vodoměru</th><th>Výrobce</th><th>Typ</th><th>Stav</th><th>Naskenováno</th><th>1. telegram</th><th class="num">RSSI</th><th></th>
         </tr></thead><tbody></tbody></table>
         <div id="iHint" class="hint">Vyplňte dům, byt a místnost a naskenujte štítek měřidla. Jakmile od něj EWR-TD zachytí telegram, řádek zezelená.</div>
       </div>
@@ -201,7 +207,7 @@ button.x:hover{color:var(--err)}
     <div class="mfoot" id="scDiag" style="font-size:11px;color:var(--muted);padding-top:0"></div>
     <div class="mfoot"><span id="scInfo" style="color:var(--muted)">Spouštím kameru…</span></div>
     <div class="result" id="scRes" hidden>
-      <div><span style="color:var(--muted)">Rádiové ID</span><div class="rid" id="rId"></div><div style="color:var(--muted);font-size:12px" id="rRaw"></div></div>
+      <div><span style="color:var(--muted)">Rádiové ID</span><div class="rid" id="rId"></div><div style="color:var(--muted);font-size:12px" id="rRaw"></div><div id="rCand" hidden></div></div>
       <div id="rLoc"></div>
       <div id="rWarn" class="warnbox" hidden></div>
       <div id="rSeen"></div>
@@ -452,19 +458,35 @@ const loc=r=>[r.house,r.flat&&('byt '+r.flat),r.room].filter(Boolean).join(' · 
 
 function iSave(){safe(()=>localStorage.setItem('ewrtd_install',JSON.stringify(installs)))}
 function iLoad(){const d=safe(()=>JSON.parse(localStorage.getItem('ewrtd_install')||'[]'),[]);
-  installs=d.map(r=>Object.assign(r,{scanned:new Date(r.scanned),first:r.first?new Date(r.first):null,last:r.last?new Date(r.last):null}));
-  const l=safe(()=>JSON.parse(localStorage.getItem('ewrtd_loc')||'{}'),{});$('iHouse').value=l.house||'';$('iFlat').value=l.flat||'';$('iRoom').value=l.room||''}
+  installs=d.map(r=>Object.assign(r,{uid:r.uid||Math.random().toString(36).slice(2,10),scanned:new Date(r.scanned),first:r.first?new Date(r.first):null,last:r.last?new Date(r.last):null}));
+  const l=safe(()=>JSON.parse(localStorage.getItem('ewrtd_loc')||'{}'),{});$('iHouse').value=l.house||'';$('iFlat').value=l.flat||'';$('iRoom').innerHTML=roomOptions(l.room||'')}
 function saveLoc(){safe(()=>localStorage.setItem('ewrtd_loc',JSON.stringify({house:$('iHouse').value.trim(),flat:$('iFlat').value.trim(),room:$('iRoom').value.trim()})))}
-['iHouse','iFlat','iRoom'].forEach(id=>$(id).addEventListener('change',saveLoc));
+['iHouse','iFlat'].forEach(id=>$(id).addEventListener('change',saveLoc));
+const ROOMS=['koupelna','WC','chodba','pokoj','obývák','kuchyně','komora','pracovna'];
+// nabídka místností: pevný seznam + dříve zadané vlastní + „jiná…“
+function roomOptions(sel){
+  const extra=[...new Set(installs.map(r=>r.room).filter(x=>x&&!ROOMS.includes(x)))];
+  if(sel&&!ROOMS.includes(sel)&&!extra.includes(sel))extra.push(sel);
+  return '<option value="">–</option>'+[...ROOMS,...extra].map(x=>`<option${x===sel?' selected':''}>${esc(x)}</option>`).join('')+'<option value="__other">jiná…</option>';
+}
+function askOtherRoom(selEl,prev){const v=(prompt('Název místnosti')||'').trim();if(v){selEl.innerHTML=roomOptions(v);return v}selEl.innerHTML=roomOptions(prev);return prev}
+$('iRoom').addEventListener('change',e=>{if(e.target.value==='__other')askOtherRoom(e.target,safe(()=>JSON.parse(localStorage.getItem('ewrtd_loc')||'{}').room,'')||'');saveLoc()});
 
 // číslo ze štítku -> rádiové ID (8 číslic, zleva nuly: "6739735" -> "06739735")
-function toRadioId(raw){
-  const t=String(raw).trim();
-  if(/^\d{1,8}$/.test(t))return t.padStart(8,'0');
-  const m=t.match(/\d{7,8}/);return m?m[0].padStart(8,'0'):null;
+function digitsOf(raw){const m=String(raw).match(/\d+/g);return m?m.sort((a,b)=>b.length-a.length)[0]:''}
+// Kód může mít víc než 8 číslic (např. 0399379317). Pak připadá v úvahu každých 8 po sobě jdoucích číslic.
+function idCandidates(raw){
+  const d=digitsOf(raw);if(!d)return [];
+  if(d.length<=8)return [d.padStart(8,'0')];
+  const c=[];for(let i=0;i+8<=d.length;i++)c.push(d.substr(i,8));return [...new Set(c)];
 }
+function toRadioId(raw){const c=idCandidates(raw);return c.length===1?c[0]:null}
+// naučené pravidlo: u kódu o délce N je ID od pozice X (zjištěno z telegramu nebo volbou)
+const idRules=safe(()=>JSON.parse(localStorage.getItem('ewrtd_idrule')||'{}'),{});
+function learnRule(raw,id){const d=digitsOf(raw);if(d.length<=8)return;const i=d.indexOf(id);if(i>=0){idRules[d.length]=i;safe(()=>localStorage.setItem('ewrtd_idrule',JSON.stringify(idRules)))}}
+function ruleGuess(raw){const d=digitsOf(raw),i=idRules[d.length];return i!=null&&d.length>8?d.substr(i,8):null}
 function meterById(id){let best=null;for(const m of meters.values())if(m.id===id&&(!best||m.last>best.last))best=m;return best}
-function fillFromMeter(r){const m=meterById(r.id);if(!m)return;
+function fillFromMeter(r){if(!r.id)return;const m=meterById(r.id);if(!m)return;
   r.first=r.first&&r.first<m.first?r.first:m.first;r.last=m.last;r.count=m.count;r.rssi=m.rssi;r.man=m.man;r.type=m.type}
 
 // napojení na příjem telegramů
@@ -472,7 +494,10 @@ const _onFrame=onFrame;
 onFrame=function(u){
   _onFrame(u);
   const o=raw[raw.length-1];if(!o||o.bad)return;
-  const r=installs.find(x=>x.id===o.id);if(!r)return;
+  let r=installs.find(x=>x.id===o.id);
+  if(!r){r=installs.find(x=>!x.id&&x.cands&&x.cands.includes(o.id));
+    if(r){r.id=o.id;learnRule(r.raw,o.id);toast(`ID ${o.id} určeno podle telegramu (kód ${r.raw})`);iSave()}}
+  if(!r)return;
   const firstTime=!r.first;
   if(firstTime)r.first=o.t;
   Object.assign(r,{last:o.t,rssi:o.rssi,man:o.man,type:o.type});r.count=(r.count||0)+1;
@@ -584,41 +609,59 @@ function onCode(rawVal,fmt){
   showResult(rawVal,fmt);
 }
 function showResult(rawVal,fmt){
-  const id=toRadioId(rawVal);
-  if(!id){$('scInfo').textContent=`Kód „${rawVal}“ neobsahuje číslo měřidla. Zkuste jiný kód nebo zadejte ručně.`;if(scanStream)openScanner('radio');return}
+  const cands=idCandidates(rawVal);
+  if(!cands.length){$('scInfo').textContent=`Kód „${rawVal}“ neobsahuje číslo měřidla. Zkuste jiný kód nebo zadejte ručně.`;if(scanStream)openScanner('radio');return}
   const cur={house:$('iHouse').value.trim(),flat:$('iFlat').value.trim(),room:$('iRoom').value.trim(),maker:makerFromCode(rawVal)};
-  pending={id,raw:String(rawVal),...cur};
+  let id=null,how='';
+  if(cands.length===1){id=cands[0]}
+  else{const heard=cands.filter(c=>meterById(c));
+    if(heard.length===1){id=heard[0];how='Určeno podle telegramu – toto ID právě vysílá.';learnRule(rawVal,id)}
+    else{id=ruleGuess(rawVal);how=id?'Navrženo podle dřívějších štítků se stejně dlouhým kódem.':''}}
+  pending={id:id||'',cands,raw:String(rawVal),how,...cur};
   stopCamera();$('scWrap').hidden=true;$('scManualRow').hidden=true;$('scRes').hidden=false;$('scTitle').textContent='Kontrola před uložením';
   $('scInfo').textContent=fmt?'Přečteno ('+fmt.replace('_',' ')+').':'Zadáno ručně.';
-  $('rId').textContent=id;$('rRaw').textContent='na štítku: '+pending.raw;
+  $('rRaw').textContent='na štítku: '+pending.raw;
   $('rLoc').innerHTML=(loc(cur)?'Místo: <b>'+esc(loc(cur))+'</b>':'<span class="warn">Místo není vyplněné.</span>')+(cur.maker?'<br>Výrobce podle kódu: <b>'+esc(cur.maker)+'</b>':'');
-  const ex=installs.find(r=>r.id===id);
-  $('rWarn').hidden=!ex;if(ex)$('rWarn').textContent=`Toto ID už je přiřazené: ${loc(ex)||'bez místa'} (${dtm(ex.scanned)}). Uložením se přesune sem.`;
-  $('rSerial').value=ex&&ex.serial?ex.serial:'';
-  const m=meterById(id);
-  $('rSeen').innerHTML=m?`<span class="okb">✔ Měřidlo už vysílá</span> – ${esc(m.man)} ${esc(typeName(m.type))}, ${m.rssi} dBm, naposledy ${tm(m.last)}`:'<span class="waitb">Od měřidla zatím nepřišel telegram.</span>'+(devState&&devState.rx?'':' Příjem EWR-TD je vypnutý.');
+  renderPending();
 }
+function renderPending(){
+  const p=pending,id=p.id;
+  $('rId').textContent=id||'?';
+  $('rCand').hidden=p.cands.length<2;
+  if(p.cands.length>1)$('rCand').innerHTML=`<span style="color:var(--muted);font-size:12px;width:100%">Kód má ${digitsOf(p.raw).length} číslic. ${esc(p.how)||'Které je rádiové ID?'}</span>`+
+    p.cands.map(c=>`<button type="button" data-c="${c}" class="${c===id?'sel':''}">${c}${meterById(c)?' ✔':''}</button>`).join('')+
+    `<button type="button" data-c="" class="${!id?'sel':''}" title="Uloží všechny možnosti, ID se určí podle prvního přijatého telegramu">Určí rádio</button>`;
+  const ex=id?installs.find(r=>r.id===id):null;
+  $('rWarn').hidden=!ex;if(ex)$('rWarn').textContent=`Toto ID už je přiřazené: ${loc(ex)||'bez místa'} (${dtm(ex.scanned)}). Uložením se přesune sem.`;
+  $('rSerial').value=ex&&ex.serial?ex.serial:$('rSerial').value;
+  const m=id?meterById(id):null;
+  $('rSeen').innerHTML=m?`<span class="okb">✔ Měřidlo už vysílá</span> – ${esc(m.man)} ${esc(typeName(m.type))}, ${m.rssi} dBm, naposledy ${tm(m.last)}`:
+    (id?'<span class="waitb">Od měřidla zatím nepřišel telegram.</span>':'<span class="waitb">ID se určí podle prvního telegramu od jedné z možností.</span>')+(devState&&devState.rx?'':' Příjem EWR-TD je vypnutý.');
+}
+$('rCand').onclick=e=>{const b=e.target.closest('[data-c]');if(!b||!pending)return;pending.id=b.dataset.c;pending.how=pending.id?'Zvoleno ručně.':'';renderPending()};
 function savePending(next){
   if(!pending)return;
-  const ex=installs.findIndex(r=>r.id===pending.id);
+  const ex=pending.id?installs.findIndex(r=>r.id===pending.id):-1;
   const prev=ex>=0?installs.splice(ex,1)[0]:null;
-  const r={id:pending.id,raw:pending.raw,house:pending.house,flat:pending.flat,room:pending.room,maker:pending.maker,serial:$('rSerial').value.trim(),scanned:new Date(),
+  if(pending.id&&pending.cands.length>1)learnRule(pending.raw,pending.id);
+  const r={uid:Date.now().toString(36)+Math.random().toString(36).slice(2,6),id:pending.id,cands:pending.id?null:pending.cands,raw:pending.raw,house:pending.house,flat:pending.flat,room:pending.room,maker:pending.maker,serial:$('rSerial').value.trim(),scanned:new Date(),
     first:prev?prev.first:null,last:prev?prev.last:null,count:prev?prev.count:0,rssi:prev?prev.rssi:null,man:prev?prev.man:'',type:prev?prev.type:null};
-  fillFromMeter(r);installs.unshift(r);iSave();iDirty=true;pending=null;
-  toast(`Uloženo ${r.id}${loc(r)?' – '+loc(r):''}`+(r.first?' · vysílá':''));
+  fillFromMeter(r);installs.unshift(r);iSave();iDirty=true;pending=null;$('rSerial').value='';
+  toast(`Uloženo ${r.id||'(ID určí rádio)'}${loc(r)?' – '+loc(r):''}`+(r.first?' · vysílá':''));
   if(next)openScanner('radio');else closeScanner();
 }
 
 // ===== Tabulka montáže =====
-let iDirty=true;
+let iDirty=true,editing=null;
 const norm=x=>String(x||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 // výrobce: z telegramu (spolehlivé), jinak z obsahu kódu, pokud v něm je; nesoulad se zvýrazní
 function makerCell(r){
-  const tel=r.man?(MAN[r.man]||r.man):'',typ=r.man?' '+esc(typeName(r.type)):'';
+  const tel=r.man?(MAN[r.man]||r.man):'';
   if(!tel)return r.maker?esc(r.maker)+' <span style="color:var(--muted)">(ze štítku)</span>':'<span class="waitb">doplní se z telegramu</span>';
   const bad=r.maker&&norm(r.maker)!==norm(tel)&&norm(r.maker)!==norm(r.man);
-  return esc(tel)+typ+(bad?` <span class="flag w" title="Výrobce v kódu nesouhlasí s telegramem">štítek: ${esc(r.maker)}</span>`:'');
+  return esc(tel)+(bad?` <span class="flag w" title="Výrobce v kódu nesouhlasí s telegramem">štítek: ${esc(r.maker)}</span>`:'');
 }
+const typeCell=r=>r.man?esc(typeName(r.type)):'';
 // pokud kód obsahuje zkratku nebo název výrobce (např. "APA", "Kamstrup"), převezme se
 function makerFromCode(raw){
   const t=String(raw||'').toUpperCase();
@@ -628,7 +671,7 @@ function makerFromCode(raw){
   return '';
 }
 function iRender(){
-  if(!iDirty)return;iDirty=false;
+  if(!iDirty||editing)return;iDirty=false;
   const houses={};installs.forEach(r=>{const h=r.house||'(bez domu)';houses[h]=houses[h]||{n:0,ok:0};houses[h].n++;if(r.first)houses[h].ok++});
   $('iHouses').innerHTML=installs.length?`<span class="chip ${houseFilter===null?'sel':''}" data-h="">Vše ${installs.filter(r=>r.first).length}/${installs.length}</span>`+Object.entries(houses).map(([h,s])=>`<span class="chip ${houseFilter===h?'sel':''}" data-h="${esc(h)}">${esc(h)}: ${s.ok} z ${s.n} vysílá</span>`).join(''):'';
   $('iHouses').hidden=!installs.length;
@@ -636,13 +679,14 @@ function iRender(){
   $('iSum').textContent=installs.length?`${installs.length} měřidel · ${ok} vysílá · ${installs.length-ok} čeká`:'';
   $('iHint').style.display=installs.length?'none':'';
   const rows=installs.filter(r=>houseFilter===null||(r.house||'(bez domu)')===houseFilter);
-  $('itbl').tBodies[0].innerHTML=rows.map(r=>`<tr class="${r.first?'ok':''} ${r.fresh?'fresh':''}"><td>${esc(r.house)}</td><td>${esc(r.flat)}</td><td>${esc(r.room)}</td><td class="mono"><b>${r.id}</b></td><td><span class="edit" data-ser="${r.id}" title="Upravit číslo vodoměru">${esc(r.serial)||'+ doplnit'}</span></td><td>${makerCell(r)}</td><td>${r.first?'<span class="okb">✔ vysílá</span>':'<span class="waitb">čeká…</span>'}</td><td>${dtm(r.scanned)}</td><td>${r.first?tm(r.first):''}</td><td class="num">${r.rssi==null?'':r.rssi+' dBm'}</td><td><button class="x" data-del="${r.id}" title="Smazat">×</button></td></tr>`).join('');
+  const ed=(r,f,html)=>`<td class="ed" data-uid="${r.uid}" data-f="${f}" title="Klepnutím upravíte">${html}</td>`;
+  $('itbl').tBodies[0].innerHTML=rows.map(r=>`<tr class="${r.first?'ok':''} ${r.fresh?'fresh':''}">${ed(r,'house',esc(r.house))}${ed(r,'flat',esc(r.flat))}${ed(r,'room',esc(r.room))}${ed(r,'id',r.id?'<b class="mono">'+r.id+'</b>':'<span class="waitb mono" title="ID určí první telegram">? '+(r.cands||[]).join(' / ')+'</span>')}${ed(r,'serial',esc(r.serial)||'<span class="waitb">+ doplnit</span>')}<td>${makerCell(r)}</td><td>${typeCell(r)}</td><td>${r.first?'<span class="okb">✔ vysílá</span>':'<span class="waitb">čeká…</span>'}</td><td>${dtm(r.scanned)}</td><td>${r.first?tm(r.first):''}</td><td class="num">${r.rssi==null?'':r.rssi+' dBm'}</td><td><button class="x" data-del="${r.uid}" title="Smazat">×</button></td></tr>`).join('');
   installs.forEach(r=>r.fresh=false);
   // datalisty z dříve zadaných míst
   const uniq=k=>[...new Set(installs.map(r=>r[k]).filter(Boolean))].slice(0,50).map(v=>`<option value="${esc(v)}">`).join('');
-  $('dlHouse').innerHTML=uniq('house');$('dlFlat').innerHTML=uniq('flat');$('dlRoom').innerHTML=uniq('room');
+  $('dlHouse').innerHTML=uniq('house');$('dlFlat').innerHTML=uniq('flat');
   // nepřiřazená měřidla v dosahu
-  const ids=new Set(installs.map(r=>r.id));
+  const ids=new Set(installs.map(r=>r.id).filter(Boolean));
   const un=[...meters.values()].filter(m=>!ids.has(m.id)).sort((a,b)=>(b.rssi??-999)-(a.rssi??-999));
   $('unCnt').textContent=un.length?'('+un.length+')':'';
   $('utbl').tBodies[0].innerHTML=un.slice(0,200).map(m=>`<tr><td class="mono"><b>${m.id}</b></td><td>${esc(m.man)} ${esc(typeName(m.type))}</td><td class="num">${m.rssi} dBm</td><td>${tm(m.last)}</td><td><button data-assign="${m.id}">Přiřadit sem</button></td></tr>`).join('');
@@ -653,10 +697,32 @@ setInterval(()=>{iDirty=true},3000);
 $('iHouses').onclick=e=>{const c=e.target.closest('.chip');if(!c)return;houseFilter=c.dataset.h||null;iDirty=true};
 $('itbl').tBodies[0].onclick=e=>{
   const d=e.target.closest('[data-del]');
-  if(d){const r=installs.find(x=>x.id===d.dataset.del);if(r&&confirm(`Smazat ${r.id} (${loc(r)||'bez místa'})?`)){installs=installs.filter(x=>x!==r);iSave();iDirty=true}return}
-  const s=e.target.closest('[data-ser]');
-  if(s){const r=installs.find(x=>x.id===s.dataset.ser);const v=prompt('Číslo vodoměru pro '+r.id,r.serial||'');if(v!==null){r.serial=v.trim();iSave();iDirty=true}}
+  if(d){const r=installs.find(x=>x.uid===d.dataset.del);if(r&&confirm(`Smazat ${r.id||r.raw} (${loc(r)||'bez místa'})?`)){installs=installs.filter(x=>x!==r);iSave();iDirty=true}return}
+  const td=e.target.closest('td.ed');if(td&&!td.querySelector('input,select'))startEdit(td);
 };
+function startEdit(td){
+  const r=installs.find(x=>x.uid===td.dataset.uid),f=td.dataset.f;if(!r)return;
+  editing=r.uid;
+  const el=document.createElement(f==='room'?'select':'input');
+  if(f==='room')el.innerHTML=roomOptions(r.room);else{el.value=r[f]||'';if(f==='id'){el.inputMode='numeric';el.placeholder='8 číslic'}}
+  td.innerHTML='';td.appendChild(el);el.focus();if(el.select)el.select();
+  let done=false;
+  const finish=save=>{if(done)return;done=true;
+    if(save){let v=el.value.trim();
+      if(f==='room'&&v==='__other'){v=(prompt('Název místnosti')||'').trim()||r.room}
+      if(f==='id'&&v!==r.id){
+        const c=idCandidates(v);
+        if(!v){r.id='';r.cands=r.cands||idCandidates(r.raw)}
+        else if(c.length!==1){alert('Rádiové ID musí mít nejvýš 8 číslic.');v=null}
+        else if(installs.some(x=>x!==r&&x.id===c[0])){alert('ID '+c[0]+' už je přiřazené jinde.');v=null}
+        else{r.id=c[0];r.cands=null;Object.assign(r,{first:null,last:null,count:0,rssi:null,man:'',type:null});fillFromMeter(r);learnRule(r.raw,r.id)}
+      }else if(v!==null&&f!=='id')r[f]=v;
+      iSave();}
+    editing=null;iDirty=true;};
+  el.addEventListener('keydown',ev=>{if(ev.key==='Enter')finish(true);if(ev.key==='Escape')finish(false)});
+  el.addEventListener('blur',()=>finish(true));
+  if(f==='room')el.addEventListener('change',()=>el.blur());
+}
 $('utbl').tBodies[0].onclick=e=>{const b=e.target.closest('[data-assign]');if(!b)return;$('scan').hidden=false;showResult(b.dataset.assign,null);$('scInfo').textContent='Přiřazení měřidla z dosahu.'};
 $('iScan').onclick=()=>{saveLoc();openScanner('radio')};
 $('iManual').onclick=()=>{saveLoc();$('scan').hidden=false;$('scRes').hidden=true;$('scWrap').hidden=true;$('scManualRow').hidden=false;$('scTitle').textContent='Zadejte číslo ze štítku';$('scInfo').textContent='';$('scManual').value='';setTimeout(()=>$('scManual').focus(),50)};
@@ -673,8 +739,8 @@ $('scFocus').oninput=()=>{try{scanStream.getVideoTracks()[0].applyConstraints({a
 $('scAF').onclick=()=>{try{scanStream.getVideoTracks()[0].applyConstraints({advanced:[{focusMode:'continuous'}]})}catch(e){}};
 $('scZoom').onclick=()=>{const i=ZOOMS.indexOf(zoomLevel);setZoom(ZOOMS.at((i+1)%ZOOMS.length));safe(()=>localStorage.setItem('ewrtd_zoom',String(zoomLevel)))};
 $('scTorch').onclick=async()=>{try{torchOn=!torchOn;await scanStream.getVideoTracks()[0].applyConstraints({advanced:[{torch:torchOn}]})}catch(e){}};
-$('iCsv').onclick=()=>download('montaz_'+stamp()+'.csv',['dum;byt;mistnost;radiove_id;cislo_vodomeru;vyrobce;zdroj_vyrobce;typ;stav;naskenovano;prvni_telegram;posledni_telegram;pocet_telegramu;rssi_dbm;kod_ze_stitku']
-  .concat(installs.slice().reverse().map(r=>[r.house,r.flat,r.room,r.id,r.serial,r.man?(MAN[r.man]||r.man):(r.maker||''),r.man?'telegram':(r.maker?'stitek':''),typeName(r.type),r.first?'vysila':'ceka',dtm(r.scanned),dtm(r.first),dtm(r.last),r.count||0,r.rssi??'',r.raw].map(v=>String(v??'').replace(/;/g,',')).join(';'))));
+$('iCsv').onclick=()=>download('montaz_'+stamp()+'.csv',['dum;byt;mistnost;radiove_id;mozna_id;cislo_vodomeru;vyrobce;zdroj_vyrobce;typ;stav;naskenovano;prvni_telegram;posledni_telegram;pocet_telegramu;rssi_dbm;kod_ze_stitku']
+  .concat(installs.slice().reverse().map(r=>[r.house,r.flat,r.room,r.id,r.id?'':(r.cands||[]).join(' '),r.serial,r.man?(MAN[r.man]||r.man):(r.maker||''),r.man?'telegram':(r.maker?'stitek':''),typeName(r.type),r.first?'vysila':'ceka',dtm(r.scanned),dtm(r.first),dtm(r.last),r.count||0,r.rssi??'',r.raw].map(v=>String(v??'').replace(/;/g,',')).join(';'))));
 $('iClr').onclick=()=>{if(confirm('Vymazat celý seznam montáže? Nejdřív si ho případně vyexportujte.')){installs=[];iSave();iDirty=true}};
 
 // ===== Záložky =====
