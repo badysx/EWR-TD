@@ -63,6 +63,32 @@ details pre{margin:0;padding:10px 12px;border-top:1px solid var(--line);max-heig
 #toasts{position:fixed;right:16px;bottom:16px;display:grid;gap:8px;z-index:5}
 .toast{background:var(--ok);color:#fff;padding:10px 14px;border-radius:8px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.25)}
 .toast.e{background:var(--err)}
+[hidden]{display:none!important}
+main>*{min-width:0}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+.tab{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;padding:8px 14px;font-weight:600;color:var(--muted)}
+.tab.sel{color:var(--fg);border-bottom-color:var(--acc)}
+.form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto auto;gap:10px;padding:12px;align-items:end;border-bottom:1px solid var(--line)}
+.form label{display:grid;gap:4px;font-size:12px}
+.form input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-width:0}
+.big{padding:10px 16px;font-size:15px;font-weight:600}
+@media (max-width:700px){.form{grid-template-columns:repeat(3,minmax(0,1fr))}.form .big,.form #iManual{grid-column:span 3}}
+.okb{color:var(--ok);font-weight:700}.waitb{color:var(--muted)}
+#itbl tr.ok td{background:color-mix(in srgb,var(--ok) 9%,transparent)}
+button.x{border:0;background:none;padding:0 6px;color:var(--muted);font-size:16px}
+button.x:hover{color:var(--err)}
+.edit{cursor:pointer;border-bottom:1px dashed var(--muted)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10;display:flex;align-items:center;justify-content:center;padding:12px}
+.modal[hidden]{display:none}
+.mbox{background:var(--panel);border-radius:12px;width:min(560px,100%);max-height:100%;overflow:auto;display:grid}
+.mhead,.mfoot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px}
+.vwrap{position:relative;background:#000;aspect-ratio:4/3;overflow:hidden}
+.vwrap video{width:100%;height:100%;object-fit:cover;display:block}
+.vwrap .frame{position:absolute;inset:22% 22%;border:3px solid rgba(255,255,255,.85);border-radius:10px;box-shadow:0 0 0 999px rgba(0,0,0,.25)}
+.result{padding:12px;display:grid;gap:10px;border-top:1px solid var(--line)}
+.result .rid{font:700 26px Consolas,ui-monospace,monospace}
+.result input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%}
+.warnbox{background:color-mix(in srgb,var(--warn) 15%,transparent);color:var(--warn);border-radius:6px;padding:8px 10px;font-weight:600}
 </style>
 </head>
 <body>
@@ -90,6 +116,45 @@ details pre{margin:0;padding:10px 12px;border-top:1px solid var(--line);max-heig
     <button id="bStat" disabled>Načíst stav</button>
     <span id="stTime" style="color:var(--muted)"></span>
   </div>
+
+  <nav class="tabs">
+    <button class="tab" data-tab="mont">Montáž</button>
+    <button class="tab" data-tab="dosah">Měřidla v dosahu</button>
+  </nav>
+
+  <div id="tab-mont" class="tabpane">
+    <section>
+      <h2>Montáž <small id="iSum"></small>
+        <span class="spacer"></span>
+        <button id="iCsv">Export CSV</button>
+        <button id="iClr">Vymazat montáž</button>
+      </h2>
+      <div class="form">
+        <label>Dům<input id="iHouse" list="dlHouse" placeholder="např. Lipová 12" autocomplete="off"></label>
+        <label>Byt<input id="iFlat" list="dlFlat" placeholder="např. 5" autocomplete="off"></label>
+        <label>Místnost<input id="iRoom" list="dlRoom" placeholder="např. koupelna" autocomplete="off"></label>
+        <button id="iScan" class="primary big">Naskenovat štítek</button>
+        <button id="iManual">Zadat ručně</button>
+      </div>
+      <datalist id="dlHouse"></datalist><datalist id="dlFlat"></datalist><datalist id="dlRoom"></datalist>
+      <div class="chips" id="iHouses"></div>
+      <div class="scroll">
+        <table id="itbl"><thead><tr>
+          <th>Dům</th><th>Byt</th><th>Místnost</th><th>Rádiové ID</th><th>Č. vodoměru</th><th>Výrobce / typ</th><th>Stav</th><th>Naskenováno</th><th>1. telegram</th><th class="num">RSSI</th><th></th>
+        </tr></thead><tbody></tbody></table>
+        <div id="iHint" class="hint">Vyplňte dům, byt a místnost a naskenujte štítek měřidla. Jakmile od něj EWR-TD zachytí telegram, řádek zezelená.</div>
+      </div>
+    </section>
+    <details id="unDet">
+      <summary>Nepřiřazená měřidla v dosahu <span id="unCnt"></span></summary>
+      <div class="scroll" style="border-top:1px solid var(--line)">
+        <table id="utbl"><thead><tr><th>Rádiové ID</th><th>Výrobce / typ</th><th class="num">RSSI</th><th>Naposledy</th><th></th></tr></thead><tbody></tbody></table>
+        <div class="hint" style="padding-top:8px">Seřazeno podle síly signálu – měřidlo, u kterého stojíte, bývá nahoře. Když štítek nejde přečíst, můžete ho přiřadit odsud.</div>
+      </div>
+    </details>
+  </div>
+
+  <div id="tab-dosah" class="tabpane">
 
   <section>
     <h2>Zachycená měřidla <small id="mSum"></small>
@@ -125,8 +190,26 @@ details pre{margin:0;padding:10px 12px;border-top:1px solid var(--line);max-heig
     <summary>Posledních 100 telegramů</summary>
     <pre id="raw"></pre>
   </details>
+  </div>
 </main>
 <div id="toasts"></div>
+<div id="scan" class="modal" hidden>
+  <div class="mbox">
+    <div class="mhead"><b id="scTitle">Naskenujte kód na štítku měřidla</b><span class="spacer"></span><button id="scTorch" hidden>Svítilna</button><button id="scClose">Zavřít</button></div>
+    <div class="vwrap" id="scWrap"><video id="scVideo" playsinline muted></video><div class="frame"></div></div>
+    <div class="mfoot"><span id="scInfo" style="color:var(--muted)">Spouštím kameru…</span></div>
+    <div class="result" id="scRes" hidden>
+      <div><span style="color:var(--muted)">Rádiové ID</span><div class="rid" id="rId"></div><div style="color:var(--muted);font-size:12px" id="rRaw"></div></div>
+      <div id="rLoc"></div>
+      <div id="rWarn" class="warnbox" hidden></div>
+      <div id="rSeen"></div>
+      <label style="display:grid;gap:4px;font-size:12px;color:var(--muted)">Číslo vodoměru (nepovinné)<span style="display:flex;gap:6px"><input id="rSerial" autocomplete="off"><button id="rScanSerial" type="button">Skenovat</button></span></label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px"><button id="rSaveNext" class="primary big">Uložit a další</button><button id="rSave">Uložit</button><button id="rAgain">Skenovat znovu</button></div>
+    </div>
+    <div class="mfoot" id="scManualRow"><input id="scManual" inputmode="numeric" placeholder="nebo zadejte číslo ze štítku" style="flex:1;font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px"><button id="scManualOk">Použít</button></div>
+  </div>
+</div>
+
 <script>
 // ===== Protokol EWR-TD (z aplikace EWM, ověřeno na zařízení) =====
 const SVC='0000ff00-0000-1000-8000-00805f9b34fb', CH_DATA='0000fef0-0000-1000-8000-00805f9b34fb', CH_STAT='0000fef1-0000-1000-8000-00805f9b34fb', CH_CMD='0000fef2-0000-1000-8000-00805f9b34fb';
@@ -359,5 +442,160 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 // ===== Instalace jako aplikace (PWA) =====
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
+<script>
+// ===== Montáž: skenování štítků, přiřazení k místu, potvrzení vysílání =====
+let installs=[], scanMode='radio', pending=null, scanStream=null, scanTimer=null, detector=null, torchOn=false, houseFilter=null;
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const loc=r=>[r.house,r.flat&&('byt '+r.flat),r.room].filter(Boolean).join(' · ');
+
+function iSave(){safe(()=>localStorage.setItem('ewrtd_install',JSON.stringify(installs)))}
+function iLoad(){const d=safe(()=>JSON.parse(localStorage.getItem('ewrtd_install')||'[]'),[]);
+  installs=d.map(r=>Object.assign(r,{scanned:new Date(r.scanned),first:r.first?new Date(r.first):null,last:r.last?new Date(r.last):null}));
+  const l=safe(()=>JSON.parse(localStorage.getItem('ewrtd_loc')||'{}'),{});$('iHouse').value=l.house||'';$('iFlat').value=l.flat||'';$('iRoom').value=l.room||''}
+function saveLoc(){safe(()=>localStorage.setItem('ewrtd_loc',JSON.stringify({house:$('iHouse').value.trim(),flat:$('iFlat').value.trim(),room:$('iRoom').value.trim()})))}
+['iHouse','iFlat','iRoom'].forEach(id=>$(id).addEventListener('change',saveLoc));
+
+// číslo ze štítku -> rádiové ID (8 číslic, zleva nuly: "6739735" -> "06739735")
+function toRadioId(raw){
+  const t=String(raw).trim();
+  if(/^\d{1,8}$/.test(t))return t.padStart(8,'0');
+  const m=t.match(/\d{7,8}/);return m?m[0].padStart(8,'0'):null;
+}
+function meterById(id){let best=null;for(const m of meters.values())if(m.id===id&&(!best||m.last>best.last))best=m;return best}
+function fillFromMeter(r){const m=meterById(r.id);if(!m)return;
+  r.first=r.first&&r.first<m.first?r.first:m.first;r.last=m.last;r.count=m.count;r.rssi=m.rssi;r.man=m.man;r.type=m.type}
+
+// napojení na příjem telegramů
+const _onFrame=onFrame;
+onFrame=function(u){
+  _onFrame(u);
+  const o=raw[raw.length-1];if(!o||o.bad)return;
+  const r=installs.find(x=>x.id===o.id);if(!r)return;
+  const firstTime=!r.first;
+  if(firstTime)r.first=o.t;
+  Object.assign(r,{last:o.t,rssi:o.rssi,man:o.man,type:o.type});r.count=(r.count||0)+1;
+  if(firstTime){r.fresh=true;beep();navigator.vibrate&&navigator.vibrate([60,60,60]);toast(`✔ ${r.id} vysílá – ${loc(r)||'bez místa'}`);iSave()}
+  iDirty=true;
+};
+
+// ===== Kamera a čtení kódu =====
+const FORMATS=['data_matrix','qr_code','code_128','code_39','ean_13','ean_8','itf'];
+async function getDetector(){
+  if(detector)return detector;
+  if('BarcodeDetector' in window){try{const f=await BarcodeDetector.getSupportedFormats();if(f.includes('data_matrix')){detector=new BarcodeDetector({formats:FORMATS.filter(x=>f.includes(x))});return detector}}catch(e){}}
+  const mod=await import('./barcode.js');
+  mod.prepareZXingModule({overrides:{locateFile:(p,pre)=>p.endsWith('.wasm')?new URL('zxing_reader.wasm',location.href).href:pre+p}});
+  detector=new mod.BarcodeDetector({formats:FORMATS});return detector;
+}
+async function openScanner(mode){
+  scanMode=mode||'radio';
+  $('scan').hidden=false;$('scRes').hidden=scanMode==='radio';$('scWrap').hidden=false;$('scManualRow').hidden=scanMode!=='radio';
+  $('scTitle').textContent=scanMode==='radio'?'Naskenujte kód na štítku měřidla':'Naskenujte číslo vodoměru';
+  if(scanMode==='radio'){pending=null;$('scManual').value=''}
+  $('scInfo').textContent='Spouštím kameru…';
+  try{
+    if(!scanStream){
+      scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+      const v=$('scVideo');v.srcObject=scanStream;await v.play();
+      const tr=scanStream.getVideoTracks()[0],caps=tr.getCapabilities?tr.getCapabilities():{};$('scTorch').hidden=!caps.torch;torchOn=false;
+    }
+    $('scInfo').textContent='Načítám čtečku kódů…';
+    const d=await getDetector();
+    $('scInfo').textContent='Namiřte kameru na kód. Čte se sám.';
+    clearInterval(scanTimer);let busy=false;
+    scanTimer=setInterval(async()=>{if(busy)return;const v=$('scVideo');if(v.readyState<2)return;busy=true;
+      try{const r=await d.detect(v);if(r&&r.length)onCode(r[0].rawValue,r[0].format)}catch(e){}busy=false},220);
+  }catch(e){
+    $('scWrap').hidden=true;
+    $('scInfo').textContent=(e.name==='NotAllowedError'?'Přístup ke kameře nebyl povolen. ':'Kameru nelze spustit ('+e.message+'). ')+'Zadejte číslo ze štítku ručně.';
+  }
+}
+function stopCamera(){clearInterval(scanTimer);scanTimer=null;if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null}}
+function closeScanner(){stopCamera();$('scan').hidden=true}
+function onCode(rawVal,fmt){
+  clearInterval(scanTimer);scanTimer=null;beep();navigator.vibrate&&navigator.vibrate(80);
+  if(scanMode==='serial'){$('rSerial').value=String(rawVal).trim();scanMode='radio';stopCamera();$('scWrap').hidden=true;$('scTitle').textContent='Kontrola před uložením';$('scInfo').textContent='Číslo vodoměru načteno.';return}
+  showResult(rawVal,fmt);
+}
+function showResult(rawVal,fmt){
+  const id=toRadioId(rawVal);
+  if(!id){$('scInfo').textContent=`Kód „${rawVal}“ neobsahuje číslo měřidla. Zkuste jiný kód nebo zadejte ručně.`;if(scanStream)openScanner('radio');return}
+  const cur={house:$('iHouse').value.trim(),flat:$('iFlat').value.trim(),room:$('iRoom').value.trim()};
+  pending={id,raw:String(rawVal),...cur};
+  stopCamera();$('scWrap').hidden=true;$('scManualRow').hidden=true;$('scRes').hidden=false;$('scTitle').textContent='Kontrola před uložením';
+  $('scInfo').textContent=fmt?'Přečteno ('+fmt.replace('_',' ')+').':'Zadáno ručně.';
+  $('rId').textContent=id;$('rRaw').textContent='na štítku: '+pending.raw;
+  $('rLoc').innerHTML=loc(cur)?'Místo: <b>'+esc(loc(cur))+'</b>':'<span class="warn">Místo není vyplněné.</span>';
+  const ex=installs.find(r=>r.id===id);
+  $('rWarn').hidden=!ex;if(ex)$('rWarn').textContent=`Toto ID už je přiřazené: ${loc(ex)||'bez místa'} (${dtm(ex.scanned)}). Uložením se přesune sem.`;
+  $('rSerial').value=ex&&ex.serial?ex.serial:'';
+  const m=meterById(id);
+  $('rSeen').innerHTML=m?`<span class="okb">✔ Měřidlo už vysílá</span> – ${esc(m.man)} ${esc(typeName(m.type))}, ${m.rssi} dBm, naposledy ${tm(m.last)}`:'<span class="waitb">Od měřidla zatím nepřišel telegram.</span>'+(devState&&devState.rx?'':' Příjem EWR-TD je vypnutý.');
+}
+function savePending(next){
+  if(!pending)return;
+  const ex=installs.findIndex(r=>r.id===pending.id);
+  const prev=ex>=0?installs.splice(ex,1)[0]:null;
+  const r={id:pending.id,raw:pending.raw,house:pending.house,flat:pending.flat,room:pending.room,serial:$('rSerial').value.trim(),scanned:new Date(),
+    first:prev?prev.first:null,last:prev?prev.last:null,count:prev?prev.count:0,rssi:prev?prev.rssi:null,man:prev?prev.man:'',type:prev?prev.type:null};
+  fillFromMeter(r);installs.unshift(r);iSave();iDirty=true;pending=null;
+  toast(`Uloženo ${r.id}${loc(r)?' – '+loc(r):''}`+(r.first?' · vysílá':''));
+  if(next)openScanner('radio');else closeScanner();
+}
+
+// ===== Tabulka montáže =====
+let iDirty=true;
+function iRender(){
+  if(!iDirty)return;iDirty=false;
+  const houses={};installs.forEach(r=>{const h=r.house||'(bez domu)';houses[h]=houses[h]||{n:0,ok:0};houses[h].n++;if(r.first)houses[h].ok++});
+  $('iHouses').innerHTML=installs.length?`<span class="chip ${houseFilter===null?'sel':''}" data-h="">Vše ${installs.filter(r=>r.first).length}/${installs.length}</span>`+Object.entries(houses).map(([h,s])=>`<span class="chip ${houseFilter===h?'sel':''}" data-h="${esc(h)}">${esc(h)}: ${s.ok} z ${s.n} vysílá</span>`).join(''):'';
+  $('iHouses').hidden=!installs.length;
+  const ok=installs.filter(r=>r.first).length;
+  $('iSum').textContent=installs.length?`${installs.length} měřidel · ${ok} vysílá · ${installs.length-ok} čeká`:'';
+  $('iHint').style.display=installs.length?'none':'';
+  const rows=installs.filter(r=>houseFilter===null||(r.house||'(bez domu)')===houseFilter);
+  $('itbl').tBodies[0].innerHTML=rows.map(r=>`<tr class="${r.first?'ok':''} ${r.fresh?'fresh':''}"><td>${esc(r.house)}</td><td>${esc(r.flat)}</td><td>${esc(r.room)}</td><td class="mono"><b>${r.id}</b></td><td><span class="edit" data-ser="${r.id}" title="Upravit číslo vodoměru">${esc(r.serial)||'+ doplnit'}</span></td><td>${r.man?esc(r.man)+' '+esc(typeName(r.type)):''}</td><td>${r.first?'<span class="okb">✔ vysílá</span>':'<span class="waitb">čeká…</span>'}</td><td>${dtm(r.scanned)}</td><td>${r.first?tm(r.first):''}</td><td class="num">${r.rssi==null?'':r.rssi+' dBm'}</td><td><button class="x" data-del="${r.id}" title="Smazat">×</button></td></tr>`).join('');
+  installs.forEach(r=>r.fresh=false);
+  // datalisty z dříve zadaných míst
+  const uniq=k=>[...new Set(installs.map(r=>r[k]).filter(Boolean))].slice(0,50).map(v=>`<option value="${esc(v)}">`).join('');
+  $('dlHouse').innerHTML=uniq('house');$('dlFlat').innerHTML=uniq('flat');$('dlRoom').innerHTML=uniq('room');
+  // nepřiřazená měřidla v dosahu
+  const ids=new Set(installs.map(r=>r.id));
+  const un=[...meters.values()].filter(m=>!ids.has(m.id)).sort((a,b)=>(b.rssi??-999)-(a.rssi??-999));
+  $('unCnt').textContent=un.length?'('+un.length+')':'';
+  $('utbl').tBodies[0].innerHTML=un.slice(0,200).map(m=>`<tr><td class="mono"><b>${m.id}</b></td><td>${esc(m.man)} ${esc(typeName(m.type))}</td><td class="num">${m.rssi} dBm</td><td>${tm(m.last)}</td><td><button data-assign="${m.id}">Přiřadit sem</button></td></tr>`).join('');
+}
+setInterval(()=>{iDirty=true},3000);
+(function iLoop(){iRender();requestAnimationFrame(iLoop)})();
+
+$('iHouses').onclick=e=>{const c=e.target.closest('.chip');if(!c)return;houseFilter=c.dataset.h||null;iDirty=true};
+$('itbl').tBodies[0].onclick=e=>{
+  const d=e.target.closest('[data-del]');
+  if(d){const r=installs.find(x=>x.id===d.dataset.del);if(r&&confirm(`Smazat ${r.id} (${loc(r)||'bez místa'})?`)){installs=installs.filter(x=>x!==r);iSave();iDirty=true}return}
+  const s=e.target.closest('[data-ser]');
+  if(s){const r=installs.find(x=>x.id===s.dataset.ser);const v=prompt('Číslo vodoměru pro '+r.id,r.serial||'');if(v!==null){r.serial=v.trim();iSave();iDirty=true}}
+};
+$('utbl').tBodies[0].onclick=e=>{const b=e.target.closest('[data-assign]');if(!b)return;$('scan').hidden=false;showResult(b.dataset.assign,null);$('scInfo').textContent='Přiřazení měřidla z dosahu.'};
+$('iScan').onclick=()=>{saveLoc();openScanner('radio')};
+$('iManual').onclick=()=>{saveLoc();$('scan').hidden=false;$('scRes').hidden=true;$('scWrap').hidden=true;$('scManualRow').hidden=false;$('scTitle').textContent='Zadejte číslo ze štítku';$('scInfo').textContent='';$('scManual').value='';setTimeout(()=>$('scManual').focus(),50)};
+$('scManualOk').onclick=()=>{const v=$('scManual').value.trim();if(v)showResult(v,null)};
+$('scManual').onkeydown=e=>{if(e.key==='Enter')$('scManualOk').click()};
+$('scClose').onclick=closeScanner;
+$('rSave').onclick=()=>savePending(false);
+$('rSaveNext').onclick=()=>savePending(true);
+$('rAgain').onclick=()=>openScanner('radio');
+$('rScanSerial').onclick=()=>openScanner('serial');
+$('scTorch').onclick=async()=>{try{torchOn=!torchOn;await scanStream.getVideoTracks()[0].applyConstraints({advanced:[{torch:torchOn}]})}catch(e){}};
+$('iCsv').onclick=()=>download('montaz_'+stamp()+'.csv',['dum;byt;mistnost;radiove_id;cislo_vodomeru;vyrobce;typ;stav;naskenovano;prvni_telegram;posledni_telegram;pocet_telegramu;rssi_dbm;kod_ze_stitku']
+  .concat(installs.slice().reverse().map(r=>[r.house,r.flat,r.room,r.id,r.serial,r.man,typeName(r.type),r.first?'vysila':'ceka',dtm(r.scanned),dtm(r.first),dtm(r.last),r.count||0,r.rssi??'',r.raw].map(v=>String(v??'').replace(/;/g,',')).join(';'))));
+$('iClr').onclick=()=>{if(confirm('Vymazat celý seznam montáže? Nejdřív si ho případně vyexportujte.')){installs=[];iSave();iDirty=true}};
+
+// ===== Záložky =====
+function showTab(t){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('sel',b.dataset.tab===t));$('tab-mont').hidden=t!=='mont';$('tab-dosah').hidden=t!=='dosah';safe(()=>localStorage.setItem('ewrtd_tab',t))}
+document.querySelector('.tabs').onclick=e=>{const b=e.target.closest('.tab');if(b)showTab(b.dataset.tab)};
+iLoad();installs.forEach(fillFromMeter);
+showTab(safe(()=>localStorage.getItem('ewrtd_tab'),null)||'mont');
+</script>
+
 </body>
 </html>
