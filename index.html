@@ -83,7 +83,7 @@ button.x:hover{color:var(--err)}
 .mbox{background:var(--panel);border-radius:12px;width:min(560px,100%);max-height:100%;overflow:auto;display:grid}
 .mhead,.mfoot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px}
 .vwrap{position:relative;background:#000;aspect-ratio:4/3;overflow:hidden}
-.vwrap video{width:100%;height:100%;object-fit:cover;display:block}
+.vwrap video{width:100%;height:100%;object-fit:cover;display:block;transform-origin:50% 50%;transition:transform .15s}
 .vwrap .frame{position:absolute;inset:22% 22%;border:3px solid rgba(255,255,255,.85);border-radius:10px;box-shadow:0 0 0 999px rgba(0,0,0,.25)}
 .result{padding:12px;display:grid;gap:10px;border-top:1px solid var(--line)}
 .result .rid{font:700 26px Consolas,ui-monospace,monospace}
@@ -195,7 +195,7 @@ button.x:hover{color:var(--err)}
 <div id="toasts"></div>
 <div id="scan" class="modal" hidden>
   <div class="mbox">
-    <div class="mhead"><b id="scTitle">Naskenujte kód na štítku měřidla</b><span class="spacer"></span><button id="scTorch" hidden>Svítilna</button><button id="scClose">Zavřít</button></div>
+    <div class="mhead"><b id="scTitle">Naskenujte kód na štítku měřidla</b><span class="spacer"></span><button id="scZoom" hidden>Přiblížení 1×</button><button id="scTorch" hidden>Svítilna</button><button id="scClose">Zavřít</button></div>
     <div class="vwrap" id="scWrap"><video id="scVideo" playsinline muted></video><div class="frame"></div></div>
     <div class="mfoot"><span id="scInfo" style="color:var(--muted)">Spouštím kameru…</span></div>
     <div class="result" id="scRes" hidden>
@@ -444,7 +444,7 @@ if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceW
 </script>
 <script>
 // ===== Montáž: skenování štítků, přiřazení k místu, potvrzení vysílání =====
-let installs=[], scanMode='radio', pending=null, scanStream=null, scanTimer=null, detector=null, torchOn=false, houseFilter=null;
+let zoomLevel=1, zoomCaps=null, cropCanvas=null, installs=[], scanMode='radio', pending=null, scanStream=null, scanTimer=null, detector=null, torchOn=false, houseFilter=null;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const loc=r=>[r.house,r.flat&&('byt '+r.flat),r.room].filter(Boolean).join(' · ');
 
@@ -495,20 +495,43 @@ async function openScanner(mode){
   $('scInfo').textContent='Spouštím kameru…';
   try{
     if(!scanStream){
-      scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+      scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
       const v=$('scVideo');v.srcObject=scanStream;await v.play();
       const tr=scanStream.getVideoTracks()[0],caps=tr.getCapabilities?tr.getCapabilities():{};$('scTorch').hidden=!caps.torch;torchOn=false;
+      // průběžné ostření, pokud ho kamera umí
+      if(caps.focusMode&&caps.focusMode.includes('continuous')){try{await tr.applyConstraints({advanced:[{focusMode:'continuous'}]})}catch(e){}}
+      // přiblížení: optické/hardwarové, pokud ho kamera nabízí, jinak digitální výřez
+      zoomCaps=caps.zoom&&caps.zoom.max>caps.zoom.min?caps.zoom:null;
+      $('scZoom').hidden=false;await setZoom(zoomLevel);
     }
     $('scInfo').textContent='Načítám čtečku kódů…';
     const d=await getDetector();
     $('scInfo').textContent='Namiřte kameru na kód. Čte se sám.';
     clearInterval(scanTimer);let busy=false;
     scanTimer=setInterval(async()=>{if(busy)return;const v=$('scVideo');if(v.readyState<2)return;busy=true;
-      try{const r=await d.detect(v);if(r&&r.length)onCode(r[0].rawValue,r[0].format)}catch(e){}busy=false},220);
+      try{const r=await d.detect(zoomLevel>1&&!zoomCaps?centerCrop(v):v);if(r&&r.length)onCode(r[0].rawValue,r[0].format)}catch(e){}busy=false},220);
   }catch(e){
     $('scWrap').hidden=true;
     $('scInfo').textContent=(e.name==='NotAllowedError'?'Přístup ke kameře nebyl povolen. ':'Kameru nelze spustit ('+e.message+'). ')+'Zadejte číslo ze štítku ručně.';
   }
+}
+const ZOOMS=[1,2,3,4];
+async function setZoom(level){
+  zoomLevel=level;const v=$('scVideo');
+  if(zoomCaps&&scanStream){
+    const z=Math.min(zoomCaps.max,Math.max(zoomCaps.min,level));
+    try{await scanStream.getVideoTracks()[0].applyConstraints({advanced:[{zoom:z}]});v.style.transform='';}catch(e){zoomCaps=null}
+  }
+  if(!zoomCaps)v.style.transform=level>1?`scale(${level})`:'';
+  $('scZoom').textContent='Přiblížení '+level+'×';
+}
+// střed snímku odpovídající digitálnímu přiblížení (pro čtečku kódů)
+function centerCrop(v){
+  const w=v.videoWidth,h=v.videoHeight,cw=Math.round(w/zoomLevel),ch=Math.round(h/zoomLevel);
+  const k=Math.min(zoomLevel,1920/cw);  // výřez zvětšit – malé kódy se pak čtou lépe
+  cropCanvas=cropCanvas||document.createElement('canvas');cropCanvas.width=Math.round(cw*k);cropCanvas.height=Math.round(ch*k);
+  const g=cropCanvas.getContext('2d');g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';
+  g.drawImage(v,(w-cw)/2,(h-ch)/2,cw,ch,0,0,cropCanvas.width,cropCanvas.height);return cropCanvas;
 }
 function stopCamera(){clearInterval(scanTimer);scanTimer=null;if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null}}
 function closeScanner(){stopCamera();$('scan').hidden=true}
@@ -585,6 +608,7 @@ $('rSave').onclick=()=>savePending(false);
 $('rSaveNext').onclick=()=>savePending(true);
 $('rAgain').onclick=()=>openScanner('radio');
 $('rScanSerial').onclick=()=>openScanner('serial');
+$('scZoom').onclick=()=>{const i=ZOOMS.indexOf(zoomLevel);setZoom(ZOOMS.at((i+1)%ZOOMS.length));safe(()=>localStorage.setItem('ewrtd_zoom',String(zoomLevel)))};
 $('scTorch').onclick=async()=>{try{torchOn=!torchOn;await scanStream.getVideoTracks()[0].applyConstraints({advanced:[{torch:torchOn}]})}catch(e){}};
 $('iCsv').onclick=()=>download('montaz_'+stamp()+'.csv',['dum;byt;mistnost;radiove_id;cislo_vodomeru;vyrobce;typ;stav;naskenovano;prvni_telegram;posledni_telegram;pocet_telegramu;rssi_dbm;kod_ze_stitku']
   .concat(installs.slice().reverse().map(r=>[r.house,r.flat,r.room,r.id,r.serial,r.man,typeName(r.type),r.first?'vysila':'ceka',dtm(r.scanned),dtm(r.first),dtm(r.last),r.count||0,r.rssi??'',r.raw].map(v=>String(v??'').replace(/;/g,',')).join(';'))));
@@ -593,7 +617,7 @@ $('iClr').onclick=()=>{if(confirm('Vymazat celý seznam montáže? Nejdřív si 
 // ===== Záložky =====
 function showTab(t){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('sel',b.dataset.tab===t));$('tab-mont').hidden=t!=='mont';$('tab-dosah').hidden=t!=='dosah';safe(()=>localStorage.setItem('ewrtd_tab',t))}
 document.querySelector('.tabs').onclick=e=>{const b=e.target.closest('.tab');if(b)showTab(b.dataset.tab)};
-iLoad();installs.forEach(fillFromMeter);
+iLoad();installs.forEach(fillFromMeter);zoomLevel=+(safe(()=>localStorage.getItem('ewrtd_zoom'),null)||1)||1;
 showTab(safe(()=>localStorage.getItem('ewrtd_tab'),null)||'mont');
 </script>
 
