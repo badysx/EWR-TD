@@ -68,11 +68,11 @@ main>*{min-width:0}
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
 .tab{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;padding:8px 14px;font-weight:600;color:var(--muted)}
 .tab.sel{color:var(--fg);border-bottom-color:var(--acc)}
-.form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto auto;gap:10px;padding:12px;align-items:end;border-bottom:1px solid var(--line)}
+.form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto auto;gap:10px;padding:12px;align-items:end;border-bottom:1px solid var(--line)}
 .form label{display:grid;gap:4px;font-size:12px}
 .form input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-width:0}
 .big{padding:10px 16px;font-size:15px;font-weight:600}
-@media (max-width:700px){.form{grid-template-columns:repeat(3,minmax(0,1fr))}.form .big,.form #iManual{grid-column:span 3}}
+@media (max-width:900px){.form{grid-template-columns:repeat(2,minmax(0,1fr))}.form .big,.form #iManual{grid-column:span 2}}
 .okb{color:var(--ok);font-weight:700}.waitb{color:var(--muted)}
 #itbl tr.ok td{background:color-mix(in srgb,var(--ok) 9%,transparent)}
 button.x{border:0;background:none;padding:0 6px;color:var(--muted);font-size:16px}
@@ -133,10 +133,11 @@ button.x:hover{color:var(--err)}
         <label>Dům<input id="iHouse" list="dlHouse" placeholder="např. Lipová 12" autocomplete="off"></label>
         <label>Byt<input id="iFlat" list="dlFlat" placeholder="např. 5" autocomplete="off"></label>
         <label>Místnost<input id="iRoom" list="dlRoom" placeholder="např. koupelna" autocomplete="off"></label>
+        <label>Výrobce modulu<input id="iMaker" list="dlMaker" placeholder="např. Apator" autocomplete="off"></label>
         <button id="iScan" class="primary big">Naskenovat štítek</button>
         <button id="iManual">Zadat ručně</button>
       </div>
-      <datalist id="dlHouse"></datalist><datalist id="dlFlat"></datalist><datalist id="dlRoom"></datalist>
+      <datalist id="dlMaker"></datalist><datalist id="dlHouse"></datalist><datalist id="dlFlat"></datalist><datalist id="dlRoom"></datalist>
       <div class="chips" id="iHouses"></div>
       <div class="scroll">
         <table id="itbl"><thead><tr>
@@ -453,9 +454,9 @@ const loc=r=>[r.house,r.flat&&('byt '+r.flat),r.room].filter(Boolean).join(' · 
 function iSave(){safe(()=>localStorage.setItem('ewrtd_install',JSON.stringify(installs)))}
 function iLoad(){const d=safe(()=>JSON.parse(localStorage.getItem('ewrtd_install')||'[]'),[]);
   installs=d.map(r=>Object.assign(r,{scanned:new Date(r.scanned),first:r.first?new Date(r.first):null,last:r.last?new Date(r.last):null}));
-  const l=safe(()=>JSON.parse(localStorage.getItem('ewrtd_loc')||'{}'),{});$('iHouse').value=l.house||'';$('iFlat').value=l.flat||'';$('iRoom').value=l.room||''}
-function saveLoc(){safe(()=>localStorage.setItem('ewrtd_loc',JSON.stringify({house:$('iHouse').value.trim(),flat:$('iFlat').value.trim(),room:$('iRoom').value.trim()})))}
-['iHouse','iFlat','iRoom'].forEach(id=>$(id).addEventListener('change',saveLoc));
+  const l=safe(()=>JSON.parse(localStorage.getItem('ewrtd_loc')||'{}'),{});$('iHouse').value=l.house||'';$('iFlat').value=l.flat||'';$('iRoom').value=l.room||'';$('iMaker').value=l.maker||''}
+function saveLoc(){safe(()=>localStorage.setItem('ewrtd_loc',JSON.stringify({house:$('iHouse').value.trim(),flat:$('iFlat').value.trim(),room:$('iRoom').value.trim(),maker:$('iMaker').value.trim()})))}
+['iHouse','iFlat','iRoom','iMaker'].forEach(id=>$(id).addEventListener('change',saveLoc));
 
 // číslo ze štítku -> rádiové ID (8 číslic, zleva nuly: "6739735" -> "06739735")
 function toRadioId(raw){
@@ -482,12 +483,13 @@ onFrame=function(u){
 
 // ===== Kamera a čtení kódu =====
 const FORMATS=['data_matrix','qr_code','code_128','code_39','ean_13','ean_8','itf'];
-async function getDetector(){
-  if(detector)return detector;
-  if('BarcodeDetector' in window){try{const f=await BarcodeDetector.getSupportedFormats();if(f.includes('data_matrix')){detector=new BarcodeDetector({formats:FORMATS.filter(x=>f.includes(x))});return detector}}catch(e){}}
-  const mod=await import('./barcode.js');
-  mod.prepareZXingModule({overrides:{locateFile:(p,pre)=>p.endsWith('.wasm')?new URL('zxing_reader.wasm',location.href).href:pre+p}});
-  detector=new mod.BarcodeDetector({formats:FORMATS});return detector;
+let detNative=null,detZx=null,tick=0;
+async function getDetectors(){
+  if(!detNative&&'BarcodeDetector' in window){try{const f=await BarcodeDetector.getSupportedFormats();const ok=FORMATS.filter(x=>f.includes(x));if(ok.length)detNative=new BarcodeDetector({formats:ok})}catch(e){}}
+  if(!detZx){try{const mod=await import('./barcode.js');
+    mod.prepareZXingModule({overrides:{locateFile:(p,pre)=>p.endsWith('.wasm')?new URL('zxing_reader.wasm',location.href).href:pre+p}});
+    detZx=new mod.BarcodeDetector({formats:FORMATS})}catch(e){}}
+  if(!detNative&&!detZx)throw new Error('čtečka kódů se nenačetla');
 }
 async function openScanner(mode){
   scanMode=mode||'radio';
@@ -500,11 +502,18 @@ async function openScanner(mode){
       await startCamera();
     }
     $('scInfo').textContent='Načítám čtečku kódů…';
-    const d=await getDetector();
+    await getDetectors();
     $('scInfo').textContent='Namiřte kameru na kód, čte se sám. Klepnutím na obraz zaostříte.';
     clearInterval(scanTimer);let busy=false;
     scanTimer=setInterval(async()=>{if(busy)return;const v=$('scVideo');if(v.readyState<2)return;busy=true;
-      try{const r=await d.detect(zoomLevel>1&&!zoomCaps?centerCrop(v):v);if(r&&r.length)onCode(r[0].rawValue,r[0].format)}catch(e){}busy=false},220);
+      tick++;
+      try{
+        let r=null;
+        // střídání: nativní čtečka na celý obraz / ZXing na zvětšený střed (oblast rámečku)
+        if(detNative&&(tick%2===0||!detZx))r=await detNative.detect(zoomLevel>1&&!zoomCaps?centerCrop(v,1):v);
+        else if(detZx)r=await detZx.detect(centerCrop(v,0.62));
+        if(r&&r.length)onCode(r[0].rawValue,r[0].format);
+      }catch(e){}busy=false},200);
   }catch(e){
     $('scWrap').hidden=true;
     $('scInfo').textContent=(e.name==='NotAllowedError'?'Přístup ke kameře nebyl povolen. ':'Kameru nelze spustit ('+e.message+'). ')+'Zadejte číslo ze štítku ručně.';
@@ -560,9 +569,10 @@ async function setZoom(level){
   $('scZoom').textContent='Přiblížení '+level+'×';
 }
 // střed snímku odpovídající digitálnímu přiblížení (pro čtečku kódů)
-function centerCrop(v){
-  const w=v.videoWidth,h=v.videoHeight,cw=Math.round(w/zoomLevel),ch=Math.round(h/zoomLevel);
-  const k=Math.min(zoomLevel,1920/cw);  // výřez zvětšit – malé kódy se pak čtou lépe
+function centerCrop(v,frac){
+  // frac = jaká část snímku (uprostřed) se čte; u digitálního přiblížení ještě menší
+  const f=(frac||1)/(zoomCaps?1:zoomLevel),w=v.videoWidth,h=v.videoHeight,cw=Math.round(w*f),ch=Math.round(h*f);
+  const k=Math.max(1,Math.min(3,1400/cw));  // výřez zvětšit – malé kódy se pak čtou lépe
   cropCanvas=cropCanvas||document.createElement('canvas');cropCanvas.width=Math.round(cw*k);cropCanvas.height=Math.round(ch*k);
   const g=cropCanvas.getContext('2d');g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';
   g.drawImage(v,(w-cw)/2,(h-ch)/2,cw,ch,0,0,cropCanvas.width,cropCanvas.height);return cropCanvas;
@@ -577,12 +587,12 @@ function onCode(rawVal,fmt){
 function showResult(rawVal,fmt){
   const id=toRadioId(rawVal);
   if(!id){$('scInfo').textContent=`Kód „${rawVal}“ neobsahuje číslo měřidla. Zkuste jiný kód nebo zadejte ručně.`;if(scanStream)openScanner('radio');return}
-  const cur={house:$('iHouse').value.trim(),flat:$('iFlat').value.trim(),room:$('iRoom').value.trim()};
+  const cur={house:$('iHouse').value.trim(),flat:$('iFlat').value.trim(),room:$('iRoom').value.trim(),maker:$('iMaker').value.trim()};
   pending={id,raw:String(rawVal),...cur};
   stopCamera();$('scWrap').hidden=true;$('scManualRow').hidden=true;$('scRes').hidden=false;$('scTitle').textContent='Kontrola před uložením';
   $('scInfo').textContent=fmt?'Přečteno ('+fmt.replace('_',' ')+').':'Zadáno ručně.';
   $('rId').textContent=id;$('rRaw').textContent='na štítku: '+pending.raw;
-  $('rLoc').innerHTML=loc(cur)?'Místo: <b>'+esc(loc(cur))+'</b>':'<span class="warn">Místo není vyplněné.</span>';
+  $('rLoc').innerHTML=(loc(cur)?'Místo: <b>'+esc(loc(cur))+'</b>':'<span class="warn">Místo není vyplněné.</span>')+(cur.maker?'<br>Výrobce modulu: <b>'+esc(cur.maker)+'</b>':'');
   const ex=installs.find(r=>r.id===id);
   $('rWarn').hidden=!ex;if(ex)$('rWarn').textContent=`Toto ID už je přiřazené: ${loc(ex)||'bez místa'} (${dtm(ex.scanned)}). Uložením se přesune sem.`;
   $('rSerial').value=ex&&ex.serial?ex.serial:'';
@@ -593,7 +603,7 @@ function savePending(next){
   if(!pending)return;
   const ex=installs.findIndex(r=>r.id===pending.id);
   const prev=ex>=0?installs.splice(ex,1)[0]:null;
-  const r={id:pending.id,raw:pending.raw,house:pending.house,flat:pending.flat,room:pending.room,serial:$('rSerial').value.trim(),scanned:new Date(),
+  const r={id:pending.id,raw:pending.raw,house:pending.house,flat:pending.flat,room:pending.room,maker:pending.maker,serial:$('rSerial').value.trim(),scanned:new Date(),
     first:prev?prev.first:null,last:prev?prev.last:null,count:prev?prev.count:0,rssi:prev?prev.rssi:null,man:prev?prev.man:'',type:prev?prev.type:null};
   fillFromMeter(r);installs.unshift(r);iSave();iDirty=true;pending=null;
   toast(`Uloženo ${r.id}${loc(r)?' – '+loc(r):''}`+(r.first?' · vysílá':''));
@@ -602,6 +612,14 @@ function savePending(next){
 
 // ===== Tabulka montáže =====
 let iDirty=true;
+const norm=x=>String(x||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+// výrobce: z telegramu (spolehlivé) má přednost před ručně zadaným; nesoulad se zvýrazní
+function makerCell(r){
+  const tel=r.man?(MAN[r.man]||r.man):'',typ=r.man?' '+esc(typeName(r.type)):'';
+  if(!tel)return r.maker?esc(r.maker)+' <span style="color:var(--muted)">(zadáno)</span>':'';
+  const bad=r.maker&&norm(r.maker)!==norm(tel)&&norm(r.maker)!==norm(r.man);
+  return esc(tel)+typ+(bad?` <span class="flag w" title="Zadaný výrobce nesouhlasí s telegramem">zadáno: ${esc(r.maker)}</span>`:'');
+}
 function iRender(){
   if(!iDirty)return;iDirty=false;
   const houses={};installs.forEach(r=>{const h=r.house||'(bez domu)';houses[h]=houses[h]||{n:0,ok:0};houses[h].n++;if(r.first)houses[h].ok++});
@@ -611,11 +629,11 @@ function iRender(){
   $('iSum').textContent=installs.length?`${installs.length} měřidel · ${ok} vysílá · ${installs.length-ok} čeká`:'';
   $('iHint').style.display=installs.length?'none':'';
   const rows=installs.filter(r=>houseFilter===null||(r.house||'(bez domu)')===houseFilter);
-  $('itbl').tBodies[0].innerHTML=rows.map(r=>`<tr class="${r.first?'ok':''} ${r.fresh?'fresh':''}"><td>${esc(r.house)}</td><td>${esc(r.flat)}</td><td>${esc(r.room)}</td><td class="mono"><b>${r.id}</b></td><td><span class="edit" data-ser="${r.id}" title="Upravit číslo vodoměru">${esc(r.serial)||'+ doplnit'}</span></td><td>${r.man?esc(r.man)+' '+esc(typeName(r.type)):''}</td><td>${r.first?'<span class="okb">✔ vysílá</span>':'<span class="waitb">čeká…</span>'}</td><td>${dtm(r.scanned)}</td><td>${r.first?tm(r.first):''}</td><td class="num">${r.rssi==null?'':r.rssi+' dBm'}</td><td><button class="x" data-del="${r.id}" title="Smazat">×</button></td></tr>`).join('');
+  $('itbl').tBodies[0].innerHTML=rows.map(r=>`<tr class="${r.first?'ok':''} ${r.fresh?'fresh':''}"><td>${esc(r.house)}</td><td>${esc(r.flat)}</td><td>${esc(r.room)}</td><td class="mono"><b>${r.id}</b></td><td><span class="edit" data-ser="${r.id}" title="Upravit číslo vodoměru">${esc(r.serial)||'+ doplnit'}</span></td><td>${makerCell(r)}</td><td>${r.first?'<span class="okb">✔ vysílá</span>':'<span class="waitb">čeká…</span>'}</td><td>${dtm(r.scanned)}</td><td>${r.first?tm(r.first):''}</td><td class="num">${r.rssi==null?'':r.rssi+' dBm'}</td><td><button class="x" data-del="${r.id}" title="Smazat">×</button></td></tr>`).join('');
   installs.forEach(r=>r.fresh=false);
   // datalisty z dříve zadaných míst
   const uniq=k=>[...new Set(installs.map(r=>r[k]).filter(Boolean))].slice(0,50).map(v=>`<option value="${esc(v)}">`).join('');
-  $('dlHouse').innerHTML=uniq('house');$('dlFlat').innerHTML=uniq('flat');$('dlRoom').innerHTML=uniq('room');
+  $('dlHouse').innerHTML=uniq('house');$('dlMaker').innerHTML=[...new Set([...installs.map(r=>r.maker).filter(Boolean),...Object.values(MAN)])].map(v=>`<option value="${esc(v)}">`).join('');$('dlFlat').innerHTML=uniq('flat');$('dlRoom').innerHTML=uniq('room');
   // nepřiřazená měřidla v dosahu
   const ids=new Set(installs.map(r=>r.id));
   const un=[...meters.values()].filter(m=>!ids.has(m.id)).sort((a,b)=>(b.rssi??-999)-(a.rssi??-999));
@@ -648,8 +666,8 @@ $('scFocus').oninput=()=>{try{scanStream.getVideoTracks()[0].applyConstraints({a
 $('scAF').onclick=()=>{try{scanStream.getVideoTracks()[0].applyConstraints({advanced:[{focusMode:'continuous'}]})}catch(e){}};
 $('scZoom').onclick=()=>{const i=ZOOMS.indexOf(zoomLevel);setZoom(ZOOMS.at((i+1)%ZOOMS.length));safe(()=>localStorage.setItem('ewrtd_zoom',String(zoomLevel)))};
 $('scTorch').onclick=async()=>{try{torchOn=!torchOn;await scanStream.getVideoTracks()[0].applyConstraints({advanced:[{torch:torchOn}]})}catch(e){}};
-$('iCsv').onclick=()=>download('montaz_'+stamp()+'.csv',['dum;byt;mistnost;radiove_id;cislo_vodomeru;vyrobce;typ;stav;naskenovano;prvni_telegram;posledni_telegram;pocet_telegramu;rssi_dbm;kod_ze_stitku']
-  .concat(installs.slice().reverse().map(r=>[r.house,r.flat,r.room,r.id,r.serial,r.man,typeName(r.type),r.first?'vysila':'ceka',dtm(r.scanned),dtm(r.first),dtm(r.last),r.count||0,r.rssi??'',r.raw].map(v=>String(v??'').replace(/;/g,',')).join(';'))));
+$('iCsv').onclick=()=>download('montaz_'+stamp()+'.csv',['dum;byt;mistnost;radiove_id;cislo_vodomeru;vyrobce_zadany;vyrobce_z_telegramu;typ;stav;naskenovano;prvni_telegram;posledni_telegram;pocet_telegramu;rssi_dbm;kod_ze_stitku']
+  .concat(installs.slice().reverse().map(r=>[r.house,r.flat,r.room,r.id,r.serial,r.maker,r.man?(MAN[r.man]||r.man):'',typeName(r.type),r.first?'vysila':'ceka',dtm(r.scanned),dtm(r.first),dtm(r.last),r.count||0,r.rssi??'',r.raw].map(v=>String(v??'').replace(/;/g,',')).join(';'))));
 $('iClr').onclick=()=>{if(confirm('Vymazat celý seznam montáže? Nejdřív si ho případně vyexportujte.')){installs=[];iSave();iDirty=true}};
 
 // ===== Záložky =====
