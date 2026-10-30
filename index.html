@@ -196,7 +196,7 @@ main .wrap{padding:8px 16px 150px}
 
 <footer class="bottom"><div class="wrap">
   <button class="scanbtn" id="bScan"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M7 12h10"/></svg><span id="scanLbl">skenovat</span></button>
-  <button class="linkbtn" id="bFinish">dokončit dům</button>
+  <button class="linkbtn" id="bFinish">souhrn domu a sdílení tabulky</button>
 </div></footer>
 
 <div id="toasts"></div>
@@ -639,10 +639,10 @@ function openFinish(){
   const ok=st.filter(x=>x.s.k==='ok').length,open=st.filter(x=>x.s.k!=='ok');
   const whoCnt={};rows.forEach(r=>{const w=r.who||'neuvedeno';whoCnt[w]=(whoCnt[w]||0)+1});
   const whoLine=Object.entries(whoCnt).map(([w,c])=>`${esc(w)} ${c}`).join(' · ');
-  $('finishBody').innerHTML=`<div class="darkhead"><div class="phead"><div><div class="eyebrow">dokončení domu</div></div><button class="iconbtn" data-close aria-label="Zavřít" style="color:#fff">✕</button></div>
+  $('finishBody').innerHTML=`<div class="darkhead"><div class="phead"><div><div class="eyebrow">souhrn domu</div></div><button class="iconbtn" data-close aria-label="Zavřít" style="color:#fff">✕</button></div>
       <h2>${esc(place.house||'bez domu')}</h2>
       <div class="big3"><div><b>${rows.length}</b><span>měřidel</span></div><div><b>${ok}</b><span>vysílá</span></div><div><b>${open.length}</b><span>ke kontrole</span></div></div>${rows.length?`<div style="font-size:13px;color:rgba(255,255,255,.68)">montovali: ${whoLine}</div>`:''}</div>
-    <div style="font-size:14px;color:var(--muted)">Montovalo víc lidí? Před uzavřením převezměte jejich záznamy: menu ⋮ → převzít záznamy.</div>
+    <div style="font-size:14px;color:var(--muted)">Montovalo víc lidí? Před sdílením tabulky převezměte jejich záznamy: menu ⋮ → převzít záznamy.</div>
     ${open.length?'<div class="eyebrow">ke kontrole</div><div class="list">'+open.map(({r,s})=>`<button class="mrow" data-uid="${r.uid}" style="padding:10px 0"><span style="flex:1"><b style="color:var(--ink)">byt ${esc(r.flat)} · ${esc(r.room)}</b><br><span class="mono" style="font-size:13px">${r.id||esc((r.cands||[]).join(' / '))}</span></span><span style="font-size:13px;text-align:right;color:${s.k==='prob'?'var(--bad)':'var(--muted)'}">${s.long}</span></button>`).join('')+'</div>':(rows.length?'<div style="font-size:16px;color:var(--ink)">Všechna měřidla v domě vysílají.</div>':'<div style="color:var(--muted)">V tomto domě zatím nejsou žádná měřidla.</div>')}
     <div class="acts" style="flex-direction:column"><button class="btn primary" id="fnShare" style="height:54px" ${rows.length?'':'disabled'}>sdílet tabulku (e-mail, Teams…)</button><button class="btn" data-close>pokračovat v montáži</button></div>`;
   $('finishBody').querySelectorAll('[data-uid]').forEach(b=>b.onclick=()=>openDetail(b.dataset.uid));
@@ -699,13 +699,18 @@ $('bMenu').onclick=()=>{renderMenu();openSheet('shMenu')};
 $('bConnect').onclick=connect;
 $('bDisconnect').onclick=()=>{const wasDemo=isDemo;disconnect();toast(wasDemo?'Demo ukončeno.':'EWR-TD odpojeno, příjem vypnut. Zařízení vypněte tlačítkem, jinak se samo vypne do 30 min.')};
 
+let diagSort=LS('ewrtd_diagsort')||{k:'last',dir:-1};
+const DIAG_COLS=[['id','ID'],['man','výrobce'],['type','typ'],['rssi','signál'],['count','počet'],['last','naposledy'],['inst','montáž']];
 function openDiag(){
-  const rows=[...meters.values()].sort((a,b)=>(b.rssi??-999)-(a.rssi??-999));
   const ids=new Set(installs.map(r=>r.id));
+  const val=(m,k)=>k==='man'?manName(m.man):k==='type'?typeName(m.type):k==='inst'?(ids.has(m.id)?1:0):k==='last'?+m.last:m[k];
+  const rows=[...meters.values()].sort((a,b)=>{const x=val(a,diagSort.k),y=val(b,diagSort.k);return (x>y?1:x<y?-1:0)*diagSort.dir||(b.last-a.last)});
   $('diagBody').innerHTML=`<div class="phead"><div><div class="eyebrow">diagnostika</div><h2>měřidla v dosahu</h2></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
-    <div class="acts" style="align-items:center"><span class="grow" style="font-size:14px;color:var(--muted)">${pl(rows.length,'měřidlo','měřidla','měřidel')}, ${pl(raw.length,'vysílání','vysílání','vysílání')}. Seřazeno podle signálu.</span><button class="btn sm danger" id="dgClear" ${rows.length?'':'disabled'}>vymazat</button></div>
-    <div class="tscroll"><table class="tbl"><thead><tr><th>ID</th><th>výrobce</th><th>typ</th><th>signál</th><th>počet</th><th>naposledy</th><th></th></tr></thead><tbody>
-    ${rows.slice(0,400).map(m=>`<tr><td class="mono">${m.id}</td><td>${esc(manName(m.man))}</td><td>${esc(typeName(m.type))}</td><td>${m.rssi} dBm</td><td>${m.count}</td><td>${tm(m.last)}</td><td>${ids.has(m.id)?'v montáži':''}</td></tr>`).join('')}</tbody></table></div>`;
+    <div class="acts" style="align-items:center"><span class="grow" style="font-size:14px;color:var(--muted)">${pl(rows.length,'měřidlo','měřidla','měřidel')}, ${pl(raw.length,'vysílání','vysílání','vysílání')}. Řazení: klepněte na záhlaví sloupce.</span><button class="btn sm danger" id="dgClear" ${rows.length?'':'disabled'}>vymazat</button></div>
+    <div class="tscroll"><table class="tbl"><thead><tr>${DIAG_COLS.map(([k,n])=>`<th data-sort="${k}" style="cursor:pointer;user-select:none;${k===diagSort.k?'color:var(--ink)':''}">${n}${k===diagSort.k?(diagSort.dir>0?' ▲':' ▼'):''}</th>`).join('')}</tr></thead><tbody>
+    ${rows.slice(0,400).map(m=>`<tr><td class="mono">${m.id}</td><td>${esc(manName(m.man))}</td><td>${esc(typeName(m.type))}</td><td>${m.rssi} dBm</td><td>${m.count}</td><td>${m.last.toLocaleTimeString('cs-CZ',{hour12:false})}</td><td>${ids.has(m.id)?'v montáži':''}</td></tr>`).join('')}</tbody></table></div>`;
+  $('diagBody').querySelectorAll('[data-sort]').forEach(th=>th.onclick=()=>{const k=th.dataset.sort;
+    if(k===diagSort.k)diagSort.dir=-diagSort.dir;else diagSort={k,dir:(k==='id'||k==='man'||k==='type')?1:-1};LS('ewrtd_diagsort',diagSort);openDiag()});
   $('dgClear').onclick=()=>{if(!confirm('Vymazat všechna měřidla v dosahu?\n\nZáznamy montáže zůstanou, včetně potvrzení, že měřidla vysílala.'))return;
     meters.clear();raw=[];LS('ewrtd_meters',{meters:[]});dirty=true;openDiag();toast('Měřidla v dosahu vymazána.')};
   openSheet('shDiag');
