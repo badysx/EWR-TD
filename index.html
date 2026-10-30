@@ -30,7 +30,7 @@ button{cursor:pointer}
 .top .st{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #tLabel{white-space:nowrap}
 .top .st{min-width:0;flex-shrink:1}
-@media (max-width:440px){#tLabel{display:none}.top .wrap{gap:8px}#bDisconnect,#bConnect{padding:0 10px}}
+@media (max-width:440px){.top .wrap{gap:6px;padding:0 0 0 12px}#bDisconnect,#bConnect{padding:0 9px;font-size:14px;height:34px}.top .st{font-size:14px}.rxw{margin-left:3px;padding:1px 5px}#bMenu{width:38px}}
 .rxw{display:inline-block;margin-left:4px;padding:1px 6px;border-radius:4px;transition:background .6s,color .6s}
 .rxw.flash{background:var(--ok);color:#fff;transition:none}
 .iconbtn{width:44px;height:44px;border:0;background:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -380,7 +380,7 @@ const connected=()=>isDemo||!!(dev&&dev.gatt&&dev.gatt.connected&&chCmd);
 function setTop(kind,txt){
   const d=$('tDot'),info=$('tInfo'),rx=$('tRx');
   if(kind){d.className='dot'+(kind==='err'?' err':'');info.textContent=txt;rx.hidden=true;return}
-  if(connected()&&devState){d.className='dot'+(devState.rx?' on':'');info.textContent=`${devState.bat} %${isDemo?' · demo':''} ·`;rx.textContent=devState.rx?'přijímá':'příjem vypnut';rx.hidden=false}
+  if(connected()&&devState){d.className='dot'+(devState.rx?' on':'');info.textContent=`${devState.bat} %${isDemo?' demo':''}`;rx.textContent=devState.rx?'přijímá':'příjem vypnut';rx.hidden=false}
   else{d.className='dot';info.textContent='nepřipojeno';rx.hidden=true}
   $('bConnect').hidden=connected();$('bDisconnect').hidden=!connected();
 }
@@ -703,9 +703,11 @@ function openDiag(){
   const rows=[...meters.values()].sort((a,b)=>(b.rssi??-999)-(a.rssi??-999));
   const ids=new Set(installs.map(r=>r.id));
   $('diagBody').innerHTML=`<div class="phead"><div><div class="eyebrow">diagnostika</div><h2>měřidla v dosahu</h2></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
-    <div style="font-size:14px;color:var(--muted)">${rows.length} měřidel, ${raw.length} zachycených vysílání. Seřazeno podle signálu.</div>
+    <div class="acts" style="align-items:center"><span class="grow" style="font-size:14px;color:var(--muted)">${pl(rows.length,'měřidlo','měřidla','měřidel')}, ${pl(raw.length,'vysílání','vysílání','vysílání')}. Seřazeno podle signálu.</span><button class="btn sm danger" id="dgClear" ${rows.length?'':'disabled'}>vymazat</button></div>
     <div class="tscroll"><table class="tbl"><thead><tr><th>ID</th><th>výrobce</th><th>typ</th><th>signál</th><th>počet</th><th>naposledy</th><th></th></tr></thead><tbody>
     ${rows.slice(0,400).map(m=>`<tr><td class="mono">${m.id}</td><td>${esc(manName(m.man))}</td><td>${esc(typeName(m.type))}</td><td>${m.rssi} dBm</td><td>${m.count}</td><td>${tm(m.last)}</td><td>${ids.has(m.id)?'v montáži':''}</td></tr>`).join('')}</tbody></table></div>`;
+  $('dgClear').onclick=()=>{if(!confirm('Vymazat všechna měřidla v dosahu?\n\nZáznamy montáže zůstanou, včetně potvrzení, že měřidla vysílala.'))return;
+    meters.clear();raw=[];LS('ewrtd_meters',{meters:[]});dirty=true;openDiag();toast('Měřidla v dosahu vymazána.')};
   openSheet('shDiag');
 }
 
