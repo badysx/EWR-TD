@@ -52,6 +52,15 @@ button{cursor:pointer}
 .pulse.idle{background:var(--faint);opacity:1;box-shadow:none}
 .actbars{margin-left:auto;display:flex;align-items:flex-end;gap:2px;height:20px}
 .actbars i{width:4px;background:var(--ok);display:block;min-height:2px}
+/* role */
+body.role-m .lead-only{display:none!important}
+body.role-l .inst-only{display:none!important}
+.welcome{position:fixed;inset:0;z-index:40;background:var(--page);overflow:auto;display:flex;justify-content:center;padding:calc(24px + env(safe-area-inset-top)) 16px 24px}
+.wbox{width:100%;max-width:560px;display:grid;gap:14px;align-content:start}
+.wbox h2{margin:0 0 4px;font-size:30px;font-weight:900;letter-spacing:-.015em;color:var(--ink)}
+.rolecard{display:grid;gap:6px;text-align:left;padding:18px 16px;background:#fff;border:1.5px solid var(--b2);border-radius:10px;font-size:15px;color:var(--body)}
+.rolecard b{font-size:20px;color:var(--ink)}
+.rolecard.sel{border-color:var(--red);background:var(--red-t);box-shadow:0 0 0 1px var(--red)}
 /* místo */
 .place{background:#fff;border-bottom:1px solid var(--b1)}
 .place .wrap{padding:14px 16px 10px;display:grid;gap:10px}
@@ -155,14 +164,14 @@ main .wrap{padding:8px 16px 150px}
 <body>
 
 <header class="top"><div class="wrap">
-  <span class="dot" id="tDot"></span>
+  <span class="dot lead-only" id="tDot"></span>
   <b id="tLabel">EWR-TD</b>
   <span class="st" id="tSt"><span id="tInfo">nepřipojeno</span><span id="tRx" class="rxw" hidden>přijímá</span></span>
   <span style="flex:1"></span>
-  <button class="btn sm primary" id="bConnect">připojit</button><button class="btn sm" id="bDisconnect" hidden>odpojit</button>
+  <button class="btn sm primary lead-only" id="bConnect">připojit</button><button class="btn sm lead-only" id="bDisconnect" hidden>odpojit</button>
   <button class="iconbtn" id="bMenu" aria-label="Menu"><svg width="22" height="22" viewBox="0 0 24 24" fill="#000" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
 </div>
-  <div class="actstrip" id="actStrip" hidden><div class="wrap">
+  <div class="actstrip lead-only" id="actStrip" hidden><div class="wrap">
     <span class="pulse" id="actDot"></span>
     <span id="actTxt">příjem běží</span>
     <span class="actbars" id="actBars" aria-hidden="true"></span>
@@ -187,9 +196,11 @@ main .wrap{padding:8px 16px 150px}
   <div class="empty" id="empty" hidden>
     <b>Jak začít</b>
     <ol>
-      <li>Zapněte EWR-TD a klepněte nahoře na <b>připojit</b>. Příjem se zapne sám.</li>
+      <li class="lead-only">Zapněte EWR-TD a klepněte nahoře na <b>připojit</b>. Příjem se zapne sám.</li>
       <li>Klepněte na <b>změnit</b> a zadejte dům a byt.</li>
-      <li>Vyberte místnost a <b>naskenujte štítek</b>. Jakmile měřidlo vyšle, zezelená.</li>
+      <li class="lead-only">Vyberte místnost a <b>naskenujte štítek</b>. Jakmile měřidlo vyšle, zezelená.</li>
+      <li class="inst-only">Vyberte místnost a <b>naskenujte štítek</b> měřidla.</li>
+      <li class="inst-only">Záznamy předejte vedoucímu: menu ⋮ → <b>předat záznamy (QR)</b> nebo souborem.</li>
     </ol>
   </div>
 </div></main>
@@ -199,6 +210,15 @@ main .wrap{padding:8px 16px 150px}
   <button class="linkbtn" id="bFinish">souhrn domu a sdílení tabulky</button>
 </div></footer>
 
+<div class="welcome" id="welcome" hidden><div class="wbox">
+  <div class="eyebrow">EWR-TD montáž</div>
+  <h2>Kdo jste?</h2>
+  <button class="rolecard" data-role="montaznik"><b>Montážník</b><span>Montuji měřidla: naskenuji štítek, zapíšu byt a místnost a záznamy předám vedoucímu.</span></button>
+  <button class="rolecard" data-role="vedouci"><b>Vedoucí instalace</b><span>Navíc připojuji přijímač EWR-TD, ověřuji, že měřidla vysílají, a přebírám záznamy od montážníků.</span></button>
+  <label class="field">vaše jméno<input id="wWho" autocomplete="name" placeholder="např. Jan Novák"></label>
+  <button class="btn primary" id="wGo" style="height:54px" disabled>pokračovat</button>
+  <div style="font-size:13px;color:var(--muted)">Roli můžete později změnit v menu ⋮. Data zůstávají jen v tomto telefonu.</div>
+</div></div>
 <div id="toasts"></div>
 
 <!-- ===== skener ===== -->
@@ -213,8 +233,8 @@ main .wrap{padding:8px 16px 150px}
     <button class="btn" id="scCant">nejde přečíst?</button>
   </div>
   <div class="cant" id="scCantBox" hidden>
-    <div class="eyebrow">nejbližší nepřiřazená měřidla</div>
-    <div class="list" id="nearby"></div>
+    <div class="eyebrow lead-only">nejbližší nepřiřazená měřidla</div>
+    <div class="list lead-only" id="nearby"></div>
     <div style="display:flex;gap:8px;margin-top:4px">
       <input id="scManual" inputmode="numeric" placeholder="opsat číslo ze štítku" aria-label="Číslo ze štítku" style="flex:1;min-width:0;height:46px;border:1.5px solid var(--b3);padding:0 12px;font-size:16px;color:var(--ink)">
       <button class="btn dark" id="scManualOk">uložit</button>
@@ -247,10 +267,10 @@ main .wrap{padding:8px 16px 150px}
 <div class="sheet" id="shHelp" hidden><div class="panel">
   <div class="phead"><div><div class="eyebrow">nápověda</div><h2>když něco nejde</h2></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
   <div class="list" style="font-size:15px">
-    <div class="li"><span><b>EWR-TD se nepřipojí.</b> Ukončete aplikaci EWM (Nastavení → Aplikace → EWM → Vynutit ukončení), v nastavení Bluetooth telefonu u EWR-TD zvolte Zapomenout, vypněte a zapněte Bluetooth. Telefon musí mít povolená „Zařízení v okolí“, u starších Androidů i polohu.</span></div>
-    <div class="li"><span><b>Zařízení není v seznamu.</b> V menu zapněte „zobrazit všechna Bluetooth zařízení“. EWR-TD nesmí být připojené k jinému telefonu nebo počítači.</span></div>
+    <div class="li lead-only"><span><b>EWR-TD se nepřipojí.</b> Ukončete aplikaci EWM (Nastavení → Aplikace → EWM → Vynutit ukončení), v nastavení Bluetooth telefonu u EWR-TD zvolte Zapomenout, vypněte a zapněte Bluetooth. Telefon musí mít povolená „Zařízení v okolí“, u starších Androidů i polohu.</span></div>
+    <div class="li lead-only"><span><b>Zařízení není v seznamu.</b> V menu zapněte „zobrazit všechna Bluetooth zařízení“. EWR-TD nesmí být připojené k jinému telefonu nebo počítači.</span></div>
     <div class="li"><span><b>Kód nejde přečíst.</b> Přiblížení 2–3×, 20–30 cm od štítku, přepněte kameru, zapněte svítilnu. Jinak „nejde přečíst?“ a vyberte měřidlo podle signálu nebo opište číslo.</span></div>
-    <div class="li"><span><b>Měřidlo „čeká“.</b> Vodoměry vysílají zhruba každou minutu. Pokud ani po 10 minutách nevysílá, zobrazí se jako problém – zkontrolujte montáž modulu.</span></div>
+    <div class="li lead-only"><span><b>Měřidlo „čeká“.</b> Vodoměry vysílají zhruba každou minutu. Pokud ani po 10 minutách nevysílá, zobrazí se jako problém – zkontrolujte montáž modulu.</span></div>
     <div class="li"><span><b>Prohlížeč.</b> Chrome na Androidu a počítači, Edge na počítači. Na iPhonu prohlížeč Bluefy.</span></div>
   </div>
 </div></div>
@@ -283,7 +303,11 @@ let dev=null,chStat=null,chCmd=null,devState=null,statTimer=null,manualDisc=fals
 let meters=new Map(),raw=[];
 let installs=(LS('ewrtd_install')||[]).map(r=>Object.assign(r,{uid:r.uid||Math.random().toString(36).slice(2,10),scanned:new Date(r.scanned),first:r.first?new Date(r.first):null,last:r.last?new Date(r.last):null}));
 let place=Object.assign({house:'',flat:'',room:'koupelna'},LS('ewrtd_loc')||{});
-let settings=Object.assign({mode:14,allDev:false,who:''},LS('ewrtd_settings')||{});
+let settings=Object.assign({mode:14,allDev:false,who:'',role:''},LS('ewrtd_settings')||{});
+const isLead=()=>settings.role==='vedouci';
+const L=()=>isLead()?{ok:'vysílá',wait:'čeká',open:'ke kontrole'}:{ok:'předáno',wait:'nepředáno',open:'nepředáno'};
+// stav záznamu podle role: vedoucí vidí vysílání, montážník předání vedoucímu
+function stateFor(r){if(isLead())return stateOf(r);return r.handed||r.src==='import'?{k:'ok',t:'předáno',long:'předáno vedoucímu'}:{k:'wait',t:'nepředáno',long:'zatím nepředáno vedoucímu'}}
 let idRules=LS('ewrtd_idrule')||{};
 let dirty=true,freshUid=null;
 (LS('ewrtd_meters')||{meters:[]}).meters.forEach(m=>{m.first=new Date(m.first);m.last=new Date(m.last);meters.set(m.k,m)});
@@ -379,6 +403,8 @@ function batEstimate(){if(batHist.length<2)return null;const a=batHist[0],b=batH
 const connected=()=>isDemo||!!(dev&&dev.gatt&&dev.gatt.connected&&chCmd);
 function setTop(kind,txt){
   const d=$('tDot'),info=$('tInfo'),rx=$('tRx');
+  if(!isLead()){$('tLabel').textContent='montážník';info.textContent=settings.who||'';rx.hidden=true;$('bConnect').hidden=true;$('bDisconnect').hidden=true;return}
+  $('tLabel').textContent='EWR-TD';
   if(kind){d.className='dot'+(kind==='err'?' err':'');info.textContent=txt;rx.hidden=true;return}
   if(connected()&&devState){d.className='dot'+(devState.rx?' on':'');info.textContent=`${devState.bat} %${isDemo?' demo':''}`;rx.textContent=devState.rx?'přijímá':'příjem vypnut';rx.hidden=false}
   else{d.className='dot';info.textContent='nepřipojeno';rx.hidden=true}
@@ -426,15 +452,15 @@ function render(){
   $('scanLbl').textContent='skenovat'+(place.room?' – '+place.room:'');
   // aktuální dům
   const list=installs.filter(r=>(r.house||'')===(place.house||''));
-  const st=list.map(r=>({r,s:stateOf(r)}));
+  const st=list.map(r=>({r,s:stateFor(r)}));const W=L();
   const n=st.length,ok=st.filter(x=>x.s.k==='ok').length,wait=st.filter(x=>x.s.k==='wait').length,prob=st.filter(x=>x.s.k==='prob').length;
-  $('sumLine').innerHTML=n?`<b>${pl(n,'měřidlo','měřidla','měřidel')}</b><span class="lg"><i style="background:var(--ok)"></i>${ok} vysílá</span><span class="lg"><i style="background:var(--faint)"></i>${wait} čeká</span>`+(prob?`<span class="lg" style="color:var(--bad)"><i style="background:var(--bad)"></i>${prob} problém</span>`:''):'';
+  $('sumLine').innerHTML=n?`<b>${pl(n,'měřidlo','měřidla','měřidel')}</b><span class="lg"><i style="background:var(--ok)"></i>${ok} ${W.ok}</span><span class="lg"><i style="background:var(--faint)"></i>${wait} ${W.wait}</span>`+(prob?`<span class="lg" style="color:var(--bad)"><i style="background:var(--bad)"></i>${prob} problém</span>`:''):'';
   $('sumBar').innerHTML=n?`<i style="width:${100*ok/n}%;background:var(--ok)"></i><i style="width:${100*prob/n}%;background:var(--bad)"></i>`:'';
   $('sumBar').hidden=!n;
   const flats=[...new Set(st.map(x=>x.r.flat||''))].sort(flatSort);
   $('flats').innerHTML=flats.map(f=>{const it=st.filter(x=>(x.r.flat||'')===f);const okn=it.filter(x=>x.s.k==='ok').length;
-    return `<div class="flat"><h3>${f?'byt '+esc(f):'bez bytu'}<span>${okn} z ${it.length} vysílá</span></h3>`+
-      it.sort((a,b)=>ROOMS.indexOf(a.r.room)-ROOMS.indexOf(b.r.room)).map(({r,s})=>`<button class="mrow ${r.uid===freshUid?'fresh':''}" data-uid="${r.uid}"><span class="room">${esc(r.room||'–')}</span><span class="id">${r.id||'? '+esc((r.cands||[]).join(' / '))}</span>${sigBars(r.rssi)}<span class="stt ${s.k}">${ICON[s.k]}${s.t}</span></button>`).join('')+'</div>'}).join('');
+    return `<div class="flat"><h3>${f?'byt '+esc(f):'bez bytu'}<span>${okn} z ${it.length} ${W.ok}</span></h3>`+
+      it.sort((a,b)=>ROOMS.indexOf(a.r.room)-ROOMS.indexOf(b.r.room)).map(({r,s})=>`<button class="mrow ${r.uid===freshUid?'fresh':''}" data-uid="${r.uid}"><span class="room">${esc(r.room||'–')}</span><span class="id">${r.id||'? '+esc((r.cands||[]).join(' / '))}</span>${isLead()?sigBars(r.rssi):''}<span class="stt ${s.k}">${ICON[s.k]}${s.t}</span></button>`).join('')+'</div>'}).join('');
   $('empty').hidden=!!n;
   freshUid=null;
   if(!$('shMenu').hidden)renderMenu();
@@ -582,7 +608,7 @@ function openResolve(p,dup){
 
 // ================= detail =================
 function openDetail(uid){
-  const r=installs.find(x=>x.uid===uid);if(!r)return;const s=stateOf(r);
+  const r=installs.find(x=>x.uid===uid);if(!r)return;const s=stateFor(r);
   const m=r.id?meterById(r.id):null;const flags=flagsOf(r.status);
   $('detailBody').innerHTML=`<div class="phead"><div><div class="eyebrow">měřidlo</div><h2 class="mono">${r.id||'?'}</h2></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
     <div class="fields">
@@ -596,8 +622,8 @@ function openDetail(uid){
       <span>stav</span><span style="color:${s.k==='prob'?'var(--bad)':'var(--ink)'}">${s.long}</span>
       <span>výrobce</span><span>${esc(manName(r.man)||r.maker||'doplní se z vysílání')}</span>
       <span>typ</span><span>${esc(typeName(r.type))||'–'}</span>
-      <span>signál</span><span>${sigText(r.rssi)}</span>
-      <span>vysílání</span><span>${r.count||0}× ${r.first?'(poprvé '+tm(r.first)+')':''}</span>
+      ${isLead()?`<span>signál</span><span>${sigText(r.rssi)}</span>
+      <span>vysílání</span><span>${r.count||0}× ${r.first?'(poprvé '+tm(r.first)+')':''}</span>`:''}
       ${flags.length?`<span>hlášení</span><span>${flags.map(f=>`<span class="flag">${f}</span>`).join('')}</span>`:''}
       <span>naskenováno</span><span>${dtm(r.scanned)}${r.who?' · '+esc(r.who):''}${r.src==='import'?' (převzato)':''}</span>
       <span>kód ze štítku</span><span class="mono">${esc(r.raw)}</span>
@@ -625,7 +651,7 @@ function openDetail(uid){
 
 // ================= dokončení domu, export =================
 const CSV_HEAD='dum;byt;mistnost;radiove_id;mozna_id;cislo_vodomeru;vyrobce;typ;stav;detail_stavu;montoval;naskenovano;prvni_vysilani;posledni_vysilani;pocet_vysilani;signal_dbm;kod_ze_stitku';
-function csvOf(rows){return '﻿'+[CSV_HEAD].concat(rows.slice().sort((a,b)=>flatSort(a.house,b.house)||flatSort(a.flat,b.flat)).map(r=>{const s=stateOf(r);
+function csvOf(rows){return '﻿'+[CSV_HEAD].concat(rows.slice().sort((a,b)=>flatSort(a.house,b.house)||flatSort(a.flat,b.flat)).map(r=>{const s=stateFor(r);
   return [r.house,r.flat,r.room,r.id,r.id?'':(r.cands||[]).join(' '),r.serial,manName(r.man)||r.maker||'',typeName(r.type),s.t,s.long,r.who||'',dtm(r.scanned),dtm(r.first),dtm(r.last),r.count||0,r.rssi??'',r.raw].map(v=>String(v??'').replace(/[;\r\n]/g,',')).join(';')})).join('\r\n')}
 const fname=p=>(p+'_'+new Date().toISOString().slice(0,10)).replace(/[^\w\-]+/g,'_')+'.csv';
 function download(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/csv'}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
@@ -635,17 +661,18 @@ async function shareCsv(name,text,title){
   download(name,text);toast('Tabulka uložena do stažených souborů.');
 }
 function openFinish(){
-  const rows=installs.filter(r=>(r.house||'')===(place.house||''));const st=rows.map(r=>({r,s:stateOf(r)}));
+  const rows=installs.filter(r=>(r.house||'')===(place.house||''));const st=rows.map(r=>({r,s:stateFor(r)}));const W=L();
   const ok=st.filter(x=>x.s.k==='ok').length,open=st.filter(x=>x.s.k!=='ok');
   const whoCnt={};rows.forEach(r=>{const w=r.who||'neuvedeno';whoCnt[w]=(whoCnt[w]||0)+1});
   const whoLine=Object.entries(whoCnt).map(([w,c])=>`${esc(w)} ${c}`).join(' · ');
   $('finishBody').innerHTML=`<div class="darkhead"><div class="phead"><div><div class="eyebrow">souhrn domu</div></div><button class="iconbtn" data-close aria-label="Zavřít" style="color:#fff">✕</button></div>
       <h2>${esc(place.house||'bez domu')}</h2>
-      <div class="big3"><div><b>${rows.length}</b><span>měřidel</span></div><div><b>${ok}</b><span>vysílá</span></div><div><b>${open.length}</b><span>ke kontrole</span></div></div>${rows.length?`<div style="font-size:13px;color:rgba(255,255,255,.68)">montovali: ${whoLine}</div>`:''}</div>
-    <div style="font-size:14px;color:var(--muted)">Montovalo víc lidí? Před sdílením tabulky převezměte jejich záznamy: menu ⋮ → převzít záznamy.</div>
-    ${open.length?'<div class="eyebrow">ke kontrole</div><div class="list">'+open.map(({r,s})=>`<button class="mrow" data-uid="${r.uid}" style="padding:10px 0"><span style="flex:1"><b style="color:var(--ink)">byt ${esc(r.flat)} · ${esc(r.room)}</b><br><span class="mono" style="font-size:13px">${r.id||esc((r.cands||[]).join(' / '))}</span></span><span style="font-size:13px;text-align:right;color:${s.k==='prob'?'var(--bad)':'var(--muted)'}">${s.long}</span></button>`).join('')+'</div>':(rows.length?'<div style="font-size:16px;color:var(--ink)">Všechna měřidla v domě vysílají.</div>':'<div style="color:var(--muted)">V tomto domě zatím nejsou žádná měřidla.</div>')}
-    <div class="acts" style="flex-direction:column"><button class="btn primary" id="fnShare" style="height:54px" ${rows.length?'':'disabled'}>sdílet tabulku (e-mail, Teams…)</button><button class="btn" data-close>pokračovat v montáži</button></div>`;
+      <div class="big3"><div><b>${rows.length}</b><span>měřidel</span></div><div><b>${ok}</b><span>${W.ok}</span></div><div><b>${open.length}</b><span>${W.open}</span></div></div>${rows.length?`<div style="font-size:13px;color:rgba(255,255,255,.68)">montovali: ${whoLine}</div>`:''}</div>
+    <div class="lead-only" style="font-size:14px;color:var(--muted)">Montovalo víc lidí? Před sdílením tabulky převezměte jejich záznamy: menu ⋮ → převzít záznamy.</div>
+    ${open.length?'<div class="eyebrow">'+W.open+'</div><div class="list">'+open.map(({r,s})=>`<button class="mrow" data-uid="${r.uid}" style="padding:10px 0"><span style="flex:1"><b style="color:var(--ink)">byt ${esc(r.flat)} · ${esc(r.room)}</b><br><span class="mono" style="font-size:13px">${r.id||esc((r.cands||[]).join(' / '))}</span></span><span style="font-size:13px;text-align:right;color:${s.k==='prob'?'var(--bad)':'var(--muted)'}">${s.long}</span></button>`).join('')+'</div>':(rows.length?'<div style="font-size:16px;color:var(--ink)">'+(isLead()?'Všechna měřidla v domě vysílají.':'Všechny záznamy jsou předané vedoucímu.')+'</div>':'<div style="color:var(--muted)">V tomto domě zatím nejsou žádná měřidla.</div>')}
+    <div class="acts" style="flex-direction:column">${isLead()?'':`<button class="btn primary" id="fnQr" style="height:54px" ${rows.length?'':'disabled'}>předat vedoucímu (QR)</button>`}<button class="btn ${isLead()?'primary':''}" id="fnShare" style="height:54px" ${rows.length?'':'disabled'}>sdílet tabulku (e-mail, Teams…)</button><button class="btn" data-close>pokračovat v montáži</button></div>`;
   $('finishBody').querySelectorAll('[data-uid]').forEach(b=>b.onclick=()=>openDetail(b.dataset.uid));
+  if($('fnQr'))$('fnQr').onclick=openQrOut;
   $('fnShare').onclick=()=>shareCsv(fname('montaz_'+(place.house||'dum')),csvOf(rows),'Montáž '+place.house);
   openSheet('shFinish');
 }
@@ -655,28 +682,30 @@ $('bFinish').onclick=openFinish;
 function renderMenu(){
   const s=devState,est=batEstimate(),c=connected();
   const tot=s?s.ok+s.crc:0;
-  $('menuBody').innerHTML=`<div class="phead"><div><div class="eyebrow">${c?esc(isDemo?'EWR-TD (demo)':dev&&dev.name||'EWR-TD'):'EWR-TD nepřipojeno'}</div></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
-    ${c&&s?`<div class="cards3">
+  const lead=isLead();
+  $('menuBody').innerHTML=`<div class="phead"><div><div class="eyebrow">${lead?(c?esc(isDemo?'EWR-TD (demo)':dev&&dev.name||'EWR-TD'):'EWR-TD nepřipojeno'):'montážník'+(settings.who?' · '+esc(settings.who):'')}</div></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
+    ${!lead?'':c&&s?`<div class="cards3">
       <div class="mcard"><div class="k">baterie</div><div class="v" style="color:${s.bat>50?'var(--ink)':s.bat>=20?'#8a5a00':'var(--bad)'}">${s.bat} %</div><div class="s">${est?'vydrží ≈ '+(est.left<1?Math.round(est.left*60)+' min':est.left.toFixed(1)+' h'):'odhad po 10 min'}</div></div>
       <div class="mcard"><div class="k">příjem</div><div class="v">${MODES[s.mode]||'–'}</div><div class="s">${s.rx?'zapnut':'vypnut'}</div></div>
       <div class="mcard"><div class="k">chybné</div><div class="v">${tot?(100*s.crc/tot).toFixed(0):0} %</div><div class="s">FW ${s.fw??'–'} · HW ${s.hw??'–'}</div></div></div>
       <div class="acts"><label class="field" style="flex:1">režim příjmu<select id="mMode">${Object.entries(MODES).map(([k,v])=>`<option value="${k}" ${+k===settings.mode?'selected':''}>${v}</option>`).join('')}</select></label>
         <button class="btn" id="mRx" style="align-self:end;height:46px">${s.rx?'zastavit příjem':'spustit příjem'}</button></div>`
       :`<button class="btn primary" id="mConn" style="height:50px">připojit EWR-TD</button>`}
-    <div class="eyebrow" style="margin-top:6px">sdílení mezi montážníky</div>
-    <button class="mi" id="mQrOut">předat záznamy kolegovi (QR)</button>
+    <div class="eyebrow" style="margin-top:6px">${lead?'sdílení mezi montážníky':'předání záznamů'}</div>
+    <button class="mi" id="mQrOut">${lead?'předat záznamy kolegovi (QR)':'předat záznamy vedoucímu (QR)'}</button>
     <button class="mi" id="mQrIn">převzít záznamy od kolegy (QR)</button>
     <button class="mi" id="mFileOut">poslat záznamy souborem</button>
     <button class="mi" id="mFileIn">načíst soubor od kolegy</button>
     <div class="eyebrow" style="margin-top:6px">ostatní</div>
-    <button class="mi" id="mDiag">měřidla v dosahu (${meters.size})</button>
+    ${lead?`<button class="mi" id="mDiag">měřidla v dosahu (${meters.size})</button>`:''}
     <button class="mi" id="mAll">sdílet tabulku – všechny domy (${installs.length})</button>
-    <button class="mi" id="mRaw">stáhnout zachycené telegramy</button>
+    ${lead?'<button class="mi" id="mRaw">stáhnout zachycené telegramy</button>':''}
     <button class="mi" id="mHelp">nápověda</button>
-    <label class="mi" style="display:flex;align-items:center;gap:10px;min-height:52px;border-bottom:1px solid var(--b1)"><input type="checkbox" id="mAllDev" ${settings.allDev?'checked':''} style="width:22px;height:22px">zobrazit všechna Bluetooth zařízení</label>
+    ${lead?`<label class="mi" style="display:flex;align-items:center;gap:10px;min-height:52px;border-bottom:1px solid var(--b1)"><input type="checkbox" id="mAllDev" ${settings.allDev?'checked':''} style="width:22px;height:22px">zobrazit všechna Bluetooth zařízení</label>
     <button class="mi" id="mDemo">${isDemo?'ukončit demo':'demo bez EWR-TD'}</button>
     ${c&&!isDemo?'<button class="mi" id="mDisc">odpojit EWR-TD (příjem se vypne)</button>':''}
-    <button class="mi" id="mClearAir" style="color:var(--bad)">vymazat zachycená vysílání z okolí (${pl(meters.size,'měřidlo','měřidla','měřidel')})</button>
+    <button class="mi" id="mClearAir" style="color:var(--bad)">vymazat zachycená vysílání z okolí (${pl(meters.size,'měřidlo','měřidla','měřidel')})</button>`:''}
+    <button class="mi" id="mRole">změnit roli (teď: ${lead?'vedoucí instalace':'montážník'})</button>
     <button class="mi" id="mClear" style="color:var(--bad)">vymazat data montáže</button>
     <div style="font-size:13px;color:var(--muted);padding-top:6px">Soukromí: všechna data jsou uložená jen v tomto zařízení. Aplikace nic neodesílá na internet – ven jdou jen to, co sami sdílíte (tabulka, soubor, QR kód).</div>`;
   const on=(id,f)=>{const e=$(id);if(e)e.onclick=f};
@@ -688,7 +717,8 @@ function renderMenu(){
   on('mFileOut',fileOut);on('mFileIn',()=>$('fileIn').click());on('mHelp',()=>openSheet('shHelp'));
   on('mAll',()=>shareCsv(fname('montaz_vse'),csvOf(installs),'Montáž – všechny domy'));
   on('mRaw',()=>download(fname('telegramy'),'﻿cas;vyrobce;id;signal_dbm;hex\r\n'+raw.map(o=>[dtm(o.t),o.man||'',o.id||'',o.rssi,o.hex].join(';')).join('\r\n')));
-  $('mAllDev').onchange=e=>{settings.allDev=e.target.checked;LS('ewrtd_settings',settings)};
+  if($('mAllDev'))$('mAllDev').onchange=e=>{settings.allDev=e.target.checked;LS('ewrtd_settings',settings)};
+  on('mRole',async()=>{closeSheets();if(isDemo)stopDemo();else if(connected())await disconnect();showWelcome()});
   on('mDemo',()=>{closeSheets();isDemo?stopDemo():startDemo()});
   on('mDisc',()=>{closeSheets();disconnect()});
   on('mClearAir',()=>{if(!confirm('Vymazat všechna zachycená vysílání z okolí?\n\nZáznamy montáže zůstanou, včetně potvrzení, že měřidla vysílala.'))return;
@@ -769,7 +799,7 @@ function openQrOut(){
     $('qrBody').querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{sel=b.dataset.s;build();draw()});
     const on=(id,f)=>{const e=$(id);if(e)e.onclick=f};
     on('qPrev',()=>{idx=(idx-1+codes.length)%codes.length;draw()});on('qNext',()=>{idx=(idx+1)%codes.length;draw()});
-    on('qDone',()=>{recs.forEach(r=>{if(r.src!=='import')r.handed=true});saveInstalls();clearInterval(qrTimer);closeSheets();toast('předáno: '+pl(recs.length,'záznam','záznamy','záznamů'))});
+    on('qDone',()=>{recs.forEach(r=>{if(r.src!=='import')r.handed=true});saveInstalls();dirty=true;clearInterval(qrTimer);closeSheets();toast('předáno: '+pl(recs.length,'záznam','záznamy','záznamů'))});
   };
   build();draw();openSheet('shQr');
   clearInterval(qrTimer);qrTimer=setInterval(()=>{if($('shQr').hidden){clearInterval(qrTimer);return}if(codes.length>1){idx=(idx+1)%codes.length;const b=$('qrBody').querySelector('.qrbox');if(b){b.innerHTML=codes[idx];const t=$('qrBody').querySelector('.acts .grow');if(t)t.textContent=`kód ${idx+1} z ${codes.length} · ${recs.length} záznamů`}}},1800);
@@ -795,8 +825,9 @@ async function fileOut(){
   const text=JSON.stringify({app:'ewrtd-montaz',v:1,w:settings.who||'',exported:new Date().toISOString(),d:inHouse.map(pack)});
   const name=fname('zaznamy_'+(place.house||'dum')+'_'+(settings.who||'montaznik')).replace(/\.csv$/,'.json');
   const file=new File([text],name,{type:'application/json'});
-  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Záznamy montáže '+place.house});return}}catch(e){if(e.name==='AbortError')return}
-  const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast('Soubor uložen do stažených souborů.');
+  const mark=()=>{inHouse.forEach(r=>{if(r.src!=='import')r.handed=true});saveInstalls();dirty=true};
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Záznamy montáže '+place.house});mark();return}}catch(e){if(e.name==='AbortError')return}
+  mark();const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast('Soubor uložen do stažených souborů.');
 }
 function parseCsvRecords(text){
   const lines=text.replace(/^\ufeff/,'').split(/\r?\n/).filter(Boolean);const head=lines.shift().split(';');const ix=k=>head.indexOf(k);
@@ -859,7 +890,19 @@ const hashc=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))|0;retu
 
 // ================= instalace jako aplikace =================
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
-if(!place.house)setTimeout(()=>{if(!installs.length)openPlace()},400);
+function applyRole(){document.body.classList.toggle('role-m',!isLead());document.body.classList.toggle('role-l',isLead());setTop();dirty=true}
+function showWelcome(){
+  let pick=settings.role||'';
+  const draw=()=>{document.querySelectorAll('.rolecard').forEach(b=>b.classList.toggle('sel',b.dataset.role===pick));$('wGo').disabled=!pick};
+  $('wWho').value=settings.who||'';
+  document.querySelectorAll('.rolecard').forEach(b=>b.onclick=()=>{pick=b.dataset.role;draw()});
+  $('wGo').onclick=()=>{settings.role=pick;settings.who=$('wWho').value.trim();LS('ewrtd_settings',settings);$('welcome').hidden=true;applyRole();
+    toast(isLead()?'Vedoucí instalace: připojte EWR-TD tlačítkem nahoře.':'Montážník: naskenujte měřidla a záznamy předejte vedoucímu.');
+    if(!place.house)setTimeout(openPlace,300)};
+  draw();$('welcome').hidden=false;
+}
+applyRole();
+if(!settings.role)showWelcome();else if(!place.house)setTimeout(()=>{if(!installs.length)openPlace()},400);
 </script>
 </body>
 </html>
