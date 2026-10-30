@@ -89,7 +89,7 @@ main .wrap{padding:8px 16px 150px}
 .mrow .id{flex:1;min-width:0;font-family:var(--mono);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .stt{width:96px;flex-shrink:0;display:flex;align-items:center;justify-content:flex-end;gap:4px;font-size:13px}
 .stt.ok{color:var(--ink)}.stt.wait{color:var(--muted)}.stt.prob{color:var(--bad);font-weight:700}
-.fresh{animation:fl 1.6s ease-out}@keyframes fl{from{background:#e8f6ee}to{background:#fff}}
+.fresh{animation:fl 1.6s ease-out}.mrow.imp{background:#fff6dc}@keyframes fl{from{background:#e8f6ee}to{background:#fff}}
 .empty{background:#fff;border:1px dashed var(--b3);border-radius:10px;padding:22px 18px;color:var(--muted);display:grid;gap:10px}
 .empty b{color:var(--ink)}
 .empty ol{margin:0;padding-left:20px}
@@ -305,7 +305,10 @@ const L=()=>isLead()?{ok:'vysílá',wait:'čeká',open:'ke kontrole'}:{ok:'před
 // stav záznamu podle role: vedoucí vidí vysílání, montážník předání vedoucímu
 function stateFor(r){if(isLead())return stateOf(r);return r.handed||r.src==='import'?{k:'ok',t:'předáno',long:'předáno vedoucímu'}:{k:'wait',t:'nepředáno',long:'zatím nepředáno vedoucímu'}}
 let idRules=LS('ewrtd_idrule')||{};
-let dirty=true,freshUid=null;
+let dirty=true,freshUid=null,freshSet=new Set();
+const normHouse=h=>String(h||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[.,]/g,' ').replace(/\s+/g,' ').trim();
+const sameHouse=(a,b)=>normHouse(a)===normHouse(b);
+const inCurHouse=r=>sameHouse(r.house,place.house);
 (LS('ewrtd_meters')||{meters:[]}).meters.forEach(m=>{m.first=new Date(m.first);m.last=new Date(m.last);meters.set(m.k,m)});
 const saveInstalls=()=>LS('ewrtd_install',installs);
 const savePlace=()=>LS('ewrtd_loc',place);
@@ -447,7 +450,7 @@ function render(){
   $('rooms').innerHTML=[...ROOMS,...extra].map(r=>`<button class="chip ${r===place.room?'sel':''}" data-room="${esc(r)}">${esc(r)}</button>`).join('')+'<button class="chip" data-room="__other">+ jiná</button>';
   $('scanLbl').textContent='skenovat'+(place.room?' – '+place.room:'');
   // aktuální dům
-  const list=installs.filter(r=>(r.house||'')===(place.house||''));
+  const list=installs.filter(inCurHouse);
   const st=list.map(r=>({r,s:stateFor(r)}));const W=L();
   const n=st.length,ok=st.filter(x=>x.s.k==='ok').length,wait=st.filter(x=>x.s.k==='wait').length,prob=st.filter(x=>x.s.k==='prob').length;
   $('sumLine').innerHTML=n?`<b>${pl(n,'měřidlo','měřidla','měřidel')}</b><span class="lg"><i style="background:var(--ok)"></i>${ok} ${W.ok}</span><span class="lg"><i style="background:var(--faint)"></i>${wait} ${W.wait}</span>`+(prob?`<span class="lg" style="color:var(--bad)"><i style="background:var(--bad)"></i>${prob} problém</span>`:''):'';
@@ -456,7 +459,7 @@ function render(){
   const flats=[...new Set(st.map(x=>x.r.flat||''))].sort(flatSort);
   $('flats').innerHTML=flats.map(f=>{const it=st.filter(x=>(x.r.flat||'')===f);const okn=it.filter(x=>x.s.k==='ok').length;
     return `<div class="flat"><h3>${f?'byt '+esc(f):'bez bytu'}<span>${okn} z ${it.length} ${W.ok}</span></h3>`+
-      it.sort((a,b)=>ROOMS.indexOf(a.r.room)-ROOMS.indexOf(b.r.room)).map(({r,s})=>`<button class="mrow ${r.uid===freshUid?'fresh':''}" data-uid="${r.uid}"><span class="room">${esc(r.room||'–')}</span><span class="id">${r.id||'? '+esc((r.cands||[]).join(' / '))}</span>${isLead()?sigBars(r.rssi):''}<span class="stt ${s.k}">${ICON[s.k]}${s.t}</span></button>`).join('')+'</div>'}).join('');
+      it.sort((a,b)=>ROOMS.indexOf(a.r.room)-ROOMS.indexOf(b.r.room)).map(({r,s})=>`<button class="mrow ${r.uid===freshUid?'fresh':''}${freshSet.has(r.uid)?' imp':''}" data-uid="${r.uid}"><span class="room">${esc(r.room||'–')}</span><span class="id">${r.id||'? '+esc((r.cands||[]).join(' / '))}</span>${isLead()?sigBars(r.rssi):''}<span class="stt ${s.k}">${ICON[s.k]}${s.t}</span></button>`).join('')+'</div>'}).join('');
   $('empty').hidden=!!n;
   freshUid=null;
   if(!$('shMenu').hidden)renderMenu();
@@ -488,7 +491,7 @@ function askRoom(){const v=(prompt('Název místnosti')||'').trim();return v||nu
 function openPlace(){
   $('fHouse').value=place.house;$('fFlat').value=place.flat;$('fWho').value=settings.who||'';$('fRoom').innerHTML=roomOpts(place.room);
   const u=k=>[...new Set(installs.map(r=>r[k]).filter(Boolean))].map(v=>`<option value="${esc(v)}">`).join('');
-  $('dlHouse').innerHTML=u('house');$('dlFlat').innerHTML=[...new Set(installs.filter(r=>r.house===$('fHouse').value.trim()).map(r=>r.flat).filter(Boolean))].sort(flatSort).map(v=>`<option value="${esc(v)}">`).join('');
+  $('dlHouse').innerHTML=u('house');$('dlFlat').innerHTML=[...new Set(installs.filter(r=>sameHouse(r.house,$('fHouse').value)).map(r=>r.flat).filter(Boolean))].sort(flatSort).map(v=>`<option value="${esc(v)}">`).join('');
   openSheet('shPlace');setTimeout(()=>(place.house?$('fFlat'):$('fHouse')).focus(),80);
 }
 $('fRoom').onchange=e=>{if(e.target.value==='__other'){const v=askRoom();e.target.innerHTML=roomOpts(v||place.room)}};
@@ -657,7 +660,7 @@ async function shareCsv(name,text,title){
   download(name,text);toast('Tabulka uložena do stažených souborů.');
 }
 function openFinish(){
-  const rows=installs.filter(r=>(r.house||'')===(place.house||''));const st=rows.map(r=>({r,s:stateFor(r)}));const W=L();
+  const rows=installs.filter(inCurHouse);const st=rows.map(r=>({r,s:stateFor(r)}));const W=L();
   const ok=st.filter(x=>x.s.k==='ok').length,open=st.filter(x=>x.s.k!=='ok');
   const whoCnt={};rows.forEach(r=>{const w=r.who||'neuvedeno';whoCnt[w]=(whoCnt[w]||0)+1});
   const whoLine=Object.entries(whoCnt).map(([w,c])=>`${esc(w)} ${c}`).join(' · ');
@@ -744,19 +747,34 @@ function openDiag(){
 // kompaktní zápis záznamu: i=ID, c=možná ID, h=dům, f=byt, r=místnost, s=č. vodoměru, w=montážník, t=čas skenu, k=kód ze štítku
 const pack=r=>({i:r.id||'',c:r.id?undefined:r.cands,h:r.house,f:r.flat,r:r.room,s:r.serial||undefined,w:r.who||undefined,t:Math.round(+r.scanned/1000),k:r.raw});
 const unpack=o=>({id:o.i||'',cands:o.i?null:(o.c||idCandidates(o.k||'')),house:o.h||'',flat:o.f||'',room:o.r||'',serial:o.s||'',who:o.w||'',scanned:new Date((o.t||0)*1000),raw:o.k||o.i||''});
+// QR v2: domy jednou, místnost jako index, čas v minutách od prvního záznamu, kód ze štítku jen když se liší od ID
+function packQr(recs,who){
+  const H=[...new Set(recs.map(r=>r.house||''))],t0=Math.min(...recs.map(r=>Math.floor(+r.scanned/60000)));
+  return {w:who,h:H,t:t0,d:recs.map(r=>{const ri=ROOMS.indexOf(r.room);const a=[r.id||'',H.indexOf(r.house||''),r.flat||'',ri>=0?ri:(r.room||''),Math.floor(+r.scanned/60000)-t0,r.serial||'',(r.raw&&r.raw!==r.id)?r.raw:'',(r.who&&r.who!==who)?r.who:''];
+    while(a.length>5&&a[a.length-1]==='')a.pop();return a})}
+}
+function unpackQr(o){return o.d.map(a=>{const [i,hi,f,ro,dt,se,k,w]=a;const raw=k||i||'';
+  return {id:i||'',cands:i?null:idCandidates(raw),house:o.h[hi]||'',flat:f||'',room:typeof ro==='number'?ROOMS[ro]||'':ro||'',serial:se||'',who:w||o.w||'',scanned:new Date(((o.t||0)+(dt||0))*60000),raw}})}
 const placeOf=r=>`${r.house}, byt ${r.flat}, ${r.room}`;
 function mergeRecords(list){
-  const res={added:0,same:0,conflicts:[]};
+  const res={added:0,same:0,conflicts:[],recs:[]};
   list.forEach(n=>{
+    const known=installs.find(r=>r.house&&sameHouse(r.house,n.house));if(known)n.house=known.house;else if(place.house&&sameHouse(place.house,n.house))n.house=place.house;
     const ex=n.id?installs.find(r=>r.id===n.id):installs.find(r=>!r.id&&r.raw===n.raw);
     if(ex){
-      if(ex.house===n.house&&ex.flat===n.flat&&ex.room===n.room){if(!ex.serial&&n.serial)ex.serial=n.serial;if(!ex.who&&n.who)ex.who=n.who;res.same++}
+      if(sameHouse(ex.house,n.house)&&ex.flat===n.flat&&ex.room===n.room){if(!ex.serial&&n.serial)ex.serial=n.serial;if(!ex.who&&n.who)ex.who=n.who;res.same++;res.recs.push(ex)}
       else res.conflicts.push({mine:ex,theirs:n});
       return;
     }
     const r=Object.assign({uid:Date.now().toString(36)+Math.random().toString(36).slice(2,8),src:'import',handed:true,first:null,last:null,count:0,rssi:null,man:'',type:null},n);
-    fillFromMeter(r);installs.push(r);res.added++;
+    if(!r.id&&r.cands){for(const m of meters.values())if(r.cands.includes(m.id)){r.id=m.id;r.cands=null;learnRule(r.raw,m.id);break}}
+    fillFromMeter(r);installs.push(r);res.added++;res.recs.push(r);
   });
+  // zobrazit dům, do kterého záznamy patří (jako by je skenoval vedoucí sám)
+  const houses={};res.recs.forEach(r=>{houses[r.house]=(houses[r.house]||0)+1});
+  res.houses=Object.entries(houses).sort((a,b)=>b[1]-a[1]);
+  if(res.recs.length&&!res.recs.some(inCurHouse)){const h=res.houses[0][0];place.house=h;const f=res.recs.find(r=>r.house===h);place.flat=f?f.flat:'';savePlace();res.switched=h}
+  freshSet.clear();res.recs.forEach(r=>freshSet.add(r.uid));clearTimeout(mergeRecords.t);mergeRecords.t=setTimeout(()=>{freshSet.clear();dirty=true},30000);
   saveInstalls();dirty=true;return res;
 }
 function showMerge(res,from){
@@ -767,9 +785,11 @@ function showMerge(res,from){
       <div class="list">${open.map((c,i)=>`<div class="li" style="display:grid;gap:6px"><b class="mono" style="color:var(--ink)">${c.mine.id}</b>
         <button class="btn sm" data-k="${i}" data-a="mine" style="text-align:left">ponechat: ${esc(placeOf(c.mine))}${c.mine.who?' ('+esc(c.mine.who)+')':''}</button>
         <button class="btn sm" data-k="${i}" data-a="theirs" style="text-align:left">převzít: ${esc(placeOf(c.theirs))}${c.theirs.who?' ('+esc(c.theirs.who)+')':''}</button></div>`).join('')}</div>
+      ${res.recs.length?`<div style="font-size:15px;color:var(--ink)">${res.switched?'Přepnuto na dům ':'Dům '}<b>${esc(res.houses.map(h=>h[0]).join(', '))}</b>. Záznamy najdete v seznamu, zvýrazněné.</div>
+      <div class="list" style="max-height:34vh;overflow:auto">${res.recs.slice(0,60).map(r=>`<div class="li" style="font-size:15px"><span>byt ${esc(r.flat||'–')} · ${esc(r.room||'–')}</span><span class="mono">${r.id||esc((r.cands||[]).join(' / '))}</span></div>`).join('')}</div>`:''}
       <div class="acts"><button class="btn primary grow" data-close>hotovo</button></div>`;
     $('importBody').querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{const c=open[+b.dataset.k];
-      if(b.dataset.a==='theirs'){Object.assign(c.mine,{house:c.theirs.house,flat:c.theirs.flat,room:c.theirs.room,who:c.theirs.who||c.mine.who});if(!c.mine.serial)c.mine.serial=c.theirs.serial;saveInstalls();dirty=true}
+      if(b.dataset.a==='theirs'){Object.assign(c.mine,{house:c.theirs.house,flat:c.theirs.flat,room:c.theirs.room,who:c.theirs.who||c.mine.who});freshSet.add(c.mine.uid);if(!c.mine.serial)c.mine.serial=c.theirs.serial;saveInstalls();dirty=true}
       c.done=true;draw()});
   };
   draw();openSheet('shImport');
@@ -777,12 +797,12 @@ function showMerge(res,from){
 // --- QR: záznamy se rozdělí do několika kódů, kolega je naskenuje v libovolném pořadí ---
 let qrTimer=null,qrParts=null;
 function openQrOut(){
-  const inHouse=installs.filter(r=>(r.house||'')===(place.house||''));
+  const inHouse=installs.filter(inCurHouse);
   const notSent=inHouse.filter(r=>r.src!=='import'&&!r.handed);
   let sel=notSent.length?'new':'all',idx=0,codes=[],recs=[];
   const build=()=>{recs=sel==='new'?notSent:inHouse;
-    const json=JSON.stringify({w:settings.who||'',d:recs.map(pack)});const sess=Math.random().toString(36).slice(2,6);const N=Math.max(1,Math.ceil(json.length/350));
-    codes=[];for(let i=0;i<N;i++){const q=qrcode(0,'M');q.addData(`EWRTD1|${sess}|${i+1}|${N}|`+json.slice(i*350,(i+1)*350));q.make();codes.push(q.createSvgTag({cellSize:4,margin:4,scalable:true}))}idx=0};
+    if(!recs.length){codes=[];return}const json=JSON.stringify(packQr(recs,settings.who||'')).replace(/[\u007f-\uffff]/g,c=>'\\u'+c.charCodeAt(0).toString(16).padStart(4,'0'));const sess=Math.random().toString(36).slice(2,6);const CH=400,N=Math.max(1,Math.ceil(json.length/CH));
+    codes=[];for(let i=0;i<N;i++){const q=qrcode(0,'M');q.addData(`EWRTD2|${sess}|${i+1}|${N}|`+json.slice(i*CH,(i+1)*CH));q.make();codes.push(q.createSvgTag({cellSize:4,margin:4,scalable:true}))}idx=0};
   const draw=()=>{
     $('qrBody').innerHTML=`<div class="phead"><div><div class="eyebrow">předat záznamy</div><h2>${esc(place.house||'bez domu')}</h2></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
       <div class="seg"><button data-s="new" class="${sel==='new'?'sel':''}">nepředané (${notSent.length})</button><button data-s="all" class="${sel==='all'?'sel':''}">všechny v domě (${inHouse.length})</button></div>
@@ -799,23 +819,24 @@ function openQrOut(){
   clearInterval(qrTimer);qrTimer=setInterval(()=>{if($('shQr').hidden){clearInterval(qrTimer);return}if(codes.length>1){idx=(idx+1)%codes.length;const b=$('qrBody').querySelector('.qrbox');if(b){b.innerHTML=codes[idx];const t=$('qrBody').querySelector('.acts .grow');if(t)t.textContent=`kód ${idx+1} z ${codes.length} · ${recs.length} záznamů`}}},1800);
 }
 function importPart(val){
-  const m=String(val).match(/^EWRTD1\|(\w+)\|(\d+)\|(\d+)\|([\s\S]*)$/);
+  const m=String(val).match(/^EWRTD([12])\|(\w+)\|(\d+)\|(\d+)\|([\s\S]*)$/);
   if(!m){$('scMsg').textContent='to není kód z aplikace EWR-TD montáž';return}
-  const [,sess,i,N,chunk]=m;
-  if(!qrParts||qrParts.sess!==sess)qrParts={sess,N:+N,parts:{}};
+  const [,ver,sess,i,N,chunk]=m;
+  if(!qrParts||qrParts.sess!==sess)qrParts={sess,ver,N:+N,parts:{}};
   if(qrParts.parts[i]==null){qrParts.parts[i]=chunk;beep(0);vib(40)}
   const have=Object.keys(qrParts.parts).length;
-  $('scMsg').textContent=`převzato ${have} z ${qrParts.N} kódů`;
+  const miss=[];for(let k=1;k<=qrParts.N;k++)if(qrParts.parts[k]==null)miss.push(k);
+  $('scMsg').textContent=`převzato ${have} z ${qrParts.N} kódů`+(miss.length&&miss.length<=6?` – chybí ${miss.join(', ')}`:'');
   if(have===qrParts.N){
     closeScanner();
-    try{const json=Array.from({length:qrParts.N},(_,k)=>qrParts.parts[k+1]).join('');const o=JSON.parse(json);showMerge(mergeRecords(o.d.map(unpack)),o.w)}
+    try{const json=Array.from({length:qrParts.N},(_,k)=>qrParts.parts[k+1]).join('');const o=JSON.parse(json);showMerge(mergeRecords(qrParts.ver==='2'?unpackQr(o):o.d.map(unpack)),o.w)}
     catch(e){toast('Záznamy se nepodařilo načíst: '+e.message,{err:true})}
     qrParts=null;
   }
 }
 // --- soubor ---
 async function fileOut(){
-  const inHouse=installs.filter(r=>(r.house||'')===(place.house||''));
+  const inHouse=installs.filter(inCurHouse);
   const text=JSON.stringify({app:'ewrtd-montaz',v:1,w:settings.who||'',exported:new Date().toISOString(),d:inHouse.map(pack)});
   const name=fname('zaznamy_'+(place.house||'dum')+'_'+(settings.who||'montaznik')).replace(/\.csv$/,'.json');
   const file=new File([text],name,{type:'application/json'});
