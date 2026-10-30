@@ -28,6 +28,11 @@ button{cursor:pointer}
 .dot.on{background:var(--ok)}.dot.err{background:var(--bad)}
 .top b{color:var(--ink)}
 .top .st{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tLabel{white-space:nowrap}
+.top .st{min-width:0;flex-shrink:1}
+@media (max-width:440px){#tLabel{display:none}.top .wrap{gap:8px}#bDisconnect,#bConnect{padding:0 10px}}
+.rxw{display:inline-block;margin-left:4px;padding:1px 6px;border-radius:4px;transition:background .6s,color .6s}
+.rxw.flash{background:var(--ok);color:#fff;transition:none}
 .iconbtn{width:44px;height:44px;border:0;background:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .btn{height:44px;padding:0 16px;border:1.5px solid var(--b3);background:#fff;color:var(--ink);font-size:15px;border-radius:0}
 .btn.sm{height:36px;padding:0 12px;font-size:14px}
@@ -38,6 +43,15 @@ button{cursor:pointer}
 .btn:disabled{opacity:.45}
 .linkbtn{border:0;background:none;color:var(--body);text-decoration:underline;font-size:15px;height:40px}
 
+/* aktivita příjmu */
+.actstrip{border-top:1px solid var(--b1);background:var(--sunk)}
+.actstrip .wrap{height:34px;display:flex;align-items:center;gap:10px;padding:0 16px;font-size:13px;color:var(--body)}
+.actstrip b{color:var(--ink)}
+.pulse{width:12px;height:12px;border-radius:999px;background:var(--ok);flex-shrink:0;opacity:.35;transition:opacity .4s}
+.pulse.on{opacity:1;transition:none;box-shadow:0 0 0 4px rgba(30,158,90,.25)}
+.pulse.idle{background:var(--faint);opacity:1;box-shadow:none}
+.actbars{margin-left:auto;display:flex;align-items:flex-end;gap:2px;height:20px}
+.actbars i{width:4px;background:var(--ok);display:block;min-height:2px}
 /* místo */
 .place{background:#fff;border-bottom:1px solid var(--b1)}
 .place .wrap{padding:14px 16px 10px;display:grid;gap:10px}
@@ -130,6 +144,8 @@ main .wrap{padding:8px 16px 150px}
 .shelp .btn{background:#fff;border-color:#fff;color:#000;font-weight:700;height:50px}
 .cant{background:#fff;color:var(--body);padding:14px 16px calc(16px + env(safe-area-inset-bottom));display:grid;gap:8px;overflow:auto}
 .cdiag{font-size:11px;color:rgba(255,255,255,.45);padding:0 16px 8px}
+.qrbox{display:flex;justify-content:center;background:#fff;padding:8px}.qrbox svg{width:min(88vw,420px);height:auto}
+.seg{display:flex;border:1.5px solid var(--b3)}.seg button{flex:1;height:42px;border:0;background:#fff;font-size:14px}.seg button.sel{background:var(--ink);color:#fff}
 .cand{display:flex;flex-wrap:wrap;gap:8px}
 .cand button{height:44px;padding:0 14px;border:1.5px solid var(--b3);background:#fff;font-family:var(--mono);font-size:15px;color:var(--ink)}
 .cand button.sel{border-color:var(--red);background:var(--red-t);color:var(--red-d);font-weight:700}
@@ -140,12 +156,18 @@ main .wrap{padding:8px 16px 150px}
 
 <header class="top"><div class="wrap">
   <span class="dot" id="tDot"></span>
-  <b>EWR-TD</b>
-  <span class="st" id="tSt">nepřipojeno</span>
+  <b id="tLabel">EWR-TD</b>
+  <span class="st" id="tSt"><span id="tInfo">nepřipojeno</span><span id="tRx" class="rxw" hidden>přijímá</span></span>
   <span style="flex:1"></span>
-  <button class="btn sm primary" id="bConnect">připojit</button>
+  <button class="btn sm primary" id="bConnect">připojit</button><button class="btn sm" id="bDisconnect" hidden>odpojit</button>
   <button class="iconbtn" id="bMenu" aria-label="Menu"><svg width="22" height="22" viewBox="0 0 24 24" fill="#000" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
-</div></header>
+</div>
+  <div class="actstrip" id="actStrip" hidden><div class="wrap">
+    <span class="pulse" id="actDot"></span>
+    <span id="actTxt">příjem běží</span>
+    <span class="actbars" id="actBars" aria-hidden="true"></span>
+  </div></div>
+</header>
 
 <section class="place"><div class="wrap">
   <div class="prow">
@@ -209,11 +231,15 @@ main .wrap{padding:8px 16px 150px}
     <label class="field full">dům (adresa)<input id="fHouse" list="dlHouse" autocomplete="off" placeholder="např. Lipová 12"></label>
     <label class="field">byt<input id="fFlat" list="dlFlat" autocomplete="off" placeholder="např. 5"></label>
     <label class="field">místnost<select id="fRoom"></select></label>
+    <label class="field full">vaše jméno (montážník)<input id="fWho" autocomplete="name" placeholder="např. Jan Novák"></label>
   </div>
   <datalist id="dlHouse"></datalist><datalist id="dlFlat"></datalist>
   <div class="acts"><button class="btn primary grow" id="fSave">použít</button></div>
 </div></div>
 
+<div class="sheet" id="shQr" hidden><div class="panel" id="qrBody"></div></div>
+<div class="sheet" id="shImport" hidden><div class="panel" id="importBody"></div></div>
+<input type="file" id="fileIn" accept=".json,.csv,application/json,text/csv,text/plain" hidden>
 <div class="sheet" id="shDetail" hidden><div class="panel" id="detailBody"></div></div>
 <div class="sheet" id="shFinish" hidden><div class="panel" id="finishBody"></div></div>
 <div class="sheet" id="shMenu" hidden><div class="panel menu" id="menuBody"></div></div>
@@ -229,6 +255,7 @@ main .wrap{padding:8px 16px 150px}
   </div>
 </div></div>
 
+<script src="qr.js"></script>
 <script>
 // ================= základ =================
 const $=id=>document.getElementById(id);
@@ -238,6 +265,7 @@ const h2=n=>n.toString(16).padStart(2,'0').toUpperCase();
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const tm=d=>d?d.toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'}):'';
 const dtm=d=>d?d.toLocaleDateString('cs-CZ')+' '+d.toLocaleTimeString('cs-CZ',{hour12:false}):'';
+const pl=(n,a,b,c)=>`${n} ${n===1?a:n>=2&&n<=4?b:c}`;
 const mins=ms=>Math.max(1,Math.round(ms/60000));
 const LS=(k,v)=>v===undefined?safe(()=>JSON.parse(localStorage.getItem(k)),null):safe(()=>localStorage.setItem(k,JSON.stringify(v)));
 
@@ -255,7 +283,7 @@ let dev=null,chStat=null,chCmd=null,devState=null,statTimer=null,manualDisc=fals
 let meters=new Map(),raw=[];
 let installs=(LS('ewrtd_install')||[]).map(r=>Object.assign(r,{uid:r.uid||Math.random().toString(36).slice(2,10),scanned:new Date(r.scanned),first:r.first?new Date(r.first):null,last:r.last?new Date(r.last):null}));
 let place=Object.assign({house:'',flat:'',room:'koupelna'},LS('ewrtd_loc')||{});
-let settings=Object.assign({mode:14,allDev:false},LS('ewrtd_settings')||{});
+let settings=Object.assign({mode:14,allDev:false,who:''},LS('ewrtd_settings')||{});
 let idRules=LS('ewrtd_idrule')||{};
 let dirty=true,freshUid=null;
 (LS('ewrtd_meters')||{meters:[]}).meters.forEach(m=>{m.first=new Date(m.first);m.last=new Date(m.last);meters.set(m.k,m)});
@@ -276,7 +304,7 @@ function flagsOf(st){if(st==null)return[];const f=[];if(st&4)f.push('slabá bate
 function onFrame(u){
   if(u.length<3)return;
   const o=decode(u.slice(0,u.length-1));o.rssi=-u[u.length-1];
-  raw.push(o);if(raw.length>5000)raw.shift();
+  raw.push(o);if(raw.length>5000)raw.shift();blink();
   if(o.bad)return;
   const k=o.man+'-'+o.id;let m=meters.get(k);
   if(!m){m={k,id:o.id,man:o.man,first:o.t,count:0};meters.set(k,m)}
@@ -315,7 +343,7 @@ async function connect(){
     await readStatus();
     if(!devState||!devState.rx||devState.mode!==settings.mode)await setRx(true);   // příjem se zapne sám
     clearInterval(statTimer);statTimer=setInterval(readStatus,15000);
-    toast('EWR-TD připojeno, příjem běží');
+    toast('EWR-TD připojeno, příjem běží');privacyNote();
   }catch(e){
     if(e.name==='NotFoundError'&&/cancel/i.test(e.message)){setTop();return}
     try{dev&&dev.gatt.disconnect()}catch(x){}
@@ -350,11 +378,11 @@ async function readStatus(){
 function batEstimate(){if(batHist.length<2)return null;const a=batHist[0],b=batHist[batHist.length-1],h=(b.t-a.t)/3.6e6;if(h<0.15||a.bat<=b.bat)return null;const r=(a.bat-b.bat)/h;return{rate:r,left:b.bat/r}}
 const connected=()=>isDemo||!!(dev&&dev.gatt&&dev.gatt.connected&&chCmd);
 function setTop(kind,txt){
-  const d=$('tDot'),s=$('tSt');
-  if(kind){d.className='dot'+(kind==='err'?' err':'');s.textContent=txt;return}
-  if(connected()&&devState){d.className='dot'+(devState.rx?' on':'');s.textContent=`${devState.bat} % · ${devState.rx?'přijímá':'příjem vypnut'}`+(isDemo?' · demo':'')}
-  else{d.className='dot';s.textContent='nepřipojeno'}
-  $('bConnect').hidden=connected();
+  const d=$('tDot'),info=$('tInfo'),rx=$('tRx');
+  if(kind){d.className='dot'+(kind==='err'?' err':'');info.textContent=txt;rx.hidden=true;return}
+  if(connected()&&devState){d.className='dot'+(devState.rx?' on':'');info.textContent=`${devState.bat} %${isDemo?' · demo':''} ·`;rx.textContent=devState.rx?'přijímá':'příjem vypnut';rx.hidden=false}
+  else{d.className='dot';info.textContent='nepřipojeno';rx.hidden=true}
+  $('bConnect').hidden=connected();$('bDisconnect').hidden=!connected();
 }
 // příjem nenechávat běžet zbytečně
 window.addEventListener('pagehide',()=>{try{if(!isDemo&&chCmd&&devState&&devState.rx)chCmd.writeValue(new Uint8Array([0xE0,settings.mode]))}catch(e){};saveInstalls()});
@@ -400,7 +428,7 @@ function render(){
   const list=installs.filter(r=>(r.house||'')===(place.house||''));
   const st=list.map(r=>({r,s:stateOf(r)}));
   const n=st.length,ok=st.filter(x=>x.s.k==='ok').length,wait=st.filter(x=>x.s.k==='wait').length,prob=st.filter(x=>x.s.k==='prob').length;
-  $('sumLine').innerHTML=n?`<b>${n} měřidel</b><span class="lg"><i style="background:var(--ok)"></i>${ok} vysílá</span><span class="lg"><i style="background:var(--faint)"></i>${wait} čeká</span>`+(prob?`<span class="lg" style="color:var(--bad)"><i style="background:var(--bad)"></i>${prob} problém</span>`:''):'';
+  $('sumLine').innerHTML=n?`<b>${pl(n,'měřidlo','měřidla','měřidel')}</b><span class="lg"><i style="background:var(--ok)"></i>${ok} vysílá</span><span class="lg"><i style="background:var(--faint)"></i>${wait} čeká</span>`+(prob?`<span class="lg" style="color:var(--bad)"><i style="background:var(--bad)"></i>${prob} problém</span>`:''):'';
   $('sumBar').innerHTML=n?`<i style="width:${100*ok/n}%;background:var(--ok)"></i><i style="width:${100*prob/n}%;background:var(--bad)"></i>`:'';
   $('sumBar').hidden=!n;
   const flats=[...new Set(st.map(x=>x.r.flat||''))].sort(flatSort);
@@ -436,13 +464,13 @@ function askRoom(){const v=(prompt('Název místnosti')||'').trim();return v||nu
 
 // místo
 function openPlace(){
-  $('fHouse').value=place.house;$('fFlat').value=place.flat;$('fRoom').innerHTML=roomOpts(place.room);
+  $('fHouse').value=place.house;$('fFlat').value=place.flat;$('fWho').value=settings.who||'';$('fRoom').innerHTML=roomOpts(place.room);
   const u=k=>[...new Set(installs.map(r=>r[k]).filter(Boolean))].map(v=>`<option value="${esc(v)}">`).join('');
   $('dlHouse').innerHTML=u('house');$('dlFlat').innerHTML=[...new Set(installs.filter(r=>r.house===$('fHouse').value.trim()).map(r=>r.flat).filter(Boolean))].sort(flatSort).map(v=>`<option value="${esc(v)}">`).join('');
   openSheet('shPlace');setTimeout(()=>(place.house?$('fFlat'):$('fHouse')).focus(),80);
 }
 $('fRoom').onchange=e=>{if(e.target.value==='__other'){const v=askRoom();e.target.innerHTML=roomOpts(v||place.room)}};
-$('fSave').onclick=()=>{place={house:$('fHouse').value.trim(),flat:$('fFlat').value.trim(),room:$('fRoom').value==='__other'?place.room:$('fRoom').value};savePlace();closeSheets();dirty=true};
+$('fSave').onclick=()=>{settings.who=$('fWho').value.trim();LS('ewrtd_settings',settings);place={house:$('fHouse').value.trim(),flat:$('fFlat').value.trim(),room:$('fRoom').value==='__other'?place.room:$('fRoom').value};savePlace();closeSheets();dirty=true};
 $('bPlace').onclick=openPlace;
 $('rooms').onclick=e=>{const b=e.target.closest('[data-room]');if(!b)return;let r=b.dataset.room;if(r==='__other'){r=askRoom();if(!r)return}place.room=r;savePlace();dirty=true};
 $('flats').onclick=e=>{const b=e.target.closest('[data-uid]');if(b)openDetail(b.dataset.uid)};
@@ -478,21 +506,22 @@ function stopCamera(){clearInterval(scanTimer);scanTimer=null;if(scanStream){sca
 async function openScanner(mode,target){
   scanMode=mode||'radio';serialTarget=target||null;
   $('scanner').hidden=false;$('scCantBox').hidden=true;$('scHelp').hidden=false;$('scWrap').hidden=false;
-  $('scTitle').textContent=scanMode==='radio'?`${place.room||'místnost?'} · ${place.flat?'byt '+place.flat:'byt?'}`:'číslo vodoměru';
+  $('scTitle').textContent=scanMode==='radio'?`${place.room||'místnost?'} · ${place.flat?'byt '+place.flat:'byt?'}`:scanMode==='import'?'převzít záznamy – QR z telefonu kolegy':'číslo vodoměru';
   $('scCant').hidden=scanMode!=='radio';
   $('scMsg').textContent='spouštím kameru…';
   try{
     if(!scanStream)await startCamera();
-    $('scMsg').textContent='načítám čtečku…';await getDetectors();$('scMsg').textContent='namiřte na kód – načte se sám';
+    $('scMsg').textContent='načítám čtečku…';await getDetectors();$('scMsg').textContent=scanMode==='import'?'namiřte na QR kód na telefonu kolegy':'namiřte na kód – načte se sám';
     clearInterval(scanTimer);let busy=false;
     scanTimer=setInterval(async()=>{if(busy)return;const v=$('scVideo');if(v.readyState<2)return;busy=true;tick++;
-      try{let r=null;if(detNative&&(tick%2===0||!detZx))r=await detNative.detect(zoomLevel>1&&!zoomCaps?centerCrop(v,1):v);else if(detZx)r=await detZx.detect(centerCrop(v,0.62));
+      try{let r=null;if(detNative&&(tick%2===0||!detZx))r=await detNative.detect(zoomLevel>1&&!zoomCaps?centerCrop(v,1):v);else if(detZx)r=await detZx.detect(centerCrop(v,scanMode==='import'||tick%3===0?1:0.62));
         if(r&&r.length)onCode(r[0].rawValue)}catch(e){}busy=false},200);
   }catch(e){$('scWrap').hidden=true;$('scHelp').hidden=true;$('scCantBox').hidden=false;renderNearby();
     toast((e.name==='NotAllowedError'?'Přístup ke kameře nebyl povolen.':'Kameru nelze spustit.')+' Vyberte měřidlo nebo opište číslo.',{err:true})}
 }
 function closeScanner(){stopCamera();$('scanner').hidden=true}
 function onCode(val){
+  if(scanMode==='import'){importPart(val);return}
   clearInterval(scanTimer);scanTimer=null;beep(0);vib(80);
   if(scanMode==='serial'){closeScanner();const r=installs.find(x=>x.uid===serialTarget);if(r){r.serial=String(val).trim();saveInstalls();openDetail(r.uid)}return}
   closeScanner();handleCode(val);
@@ -528,7 +557,7 @@ function handleCode(val,fromRadio){
 }
 function saveNew(p,replace){
   if(replace)installs=installs.filter(r=>r!==replace);
-  const r={uid:Date.now().toString(36)+Math.random().toString(36).slice(2,6),id:p.id||'',cands:p.id?null:p.cands,raw:p.raw,house:p.house,flat:p.flat,room:p.room,maker:p.maker,serial:replace?replace.serial:'',scanned:new Date(),first:null,last:null,count:0,rssi:null,man:'',type:null};
+  const r={uid:Date.now().toString(36)+Math.random().toString(36).slice(2,6),who:settings.who||'',src:'own',id:p.id||'',cands:p.id?null:p.cands,raw:p.raw,house:p.house,flat:p.flat,room:p.room,maker:p.maker,serial:replace?replace.serial:'',scanned:new Date(),first:null,last:null,count:0,rssi:null,man:'',type:null};
   fillFromMeter(r);installs.unshift(r);saveInstalls();freshUid=r.uid;dirty=true;
   const prevRoom=place.room,i=ROOMS.indexOf(place.room);if(i>=0){place.room=ROOMS[(i+1)%ROOMS.length];savePlace()}
   toast(`uloženo ${r.id||'(ID určí vysílání)'} – ${r.room}`+(r.first?' · vysílá':'')+(p.how?` · ID ${p.how}`:''),{undo:()=>{installs=installs.filter(x=>x!==r);if(replace)installs.push(replace);place.room=prevRoom;savePlace();saveInstalls();dirty=true},ms:7000});
@@ -570,7 +599,7 @@ function openDetail(uid){
       <span>signál</span><span>${sigText(r.rssi)}</span>
       <span>vysílání</span><span>${r.count||0}× ${r.first?'(poprvé '+tm(r.first)+')':''}</span>
       ${flags.length?`<span>hlášení</span><span>${flags.map(f=>`<span class="flag">${f}</span>`).join('')}</span>`:''}
-      <span>naskenováno</span><span>${dtm(r.scanned)}</span>
+      <span>naskenováno</span><span>${dtm(r.scanned)}${r.who?' · '+esc(r.who):''}${r.src==='import'?' (převzato)':''}</span>
       <span>kód ze štítku</span><span class="mono">${esc(r.raw)}</span>
     </div>
     <div class="acts"><button class="btn primary grow" id="dSave">uložit</button><button class="btn danger" id="dDel">smazat</button></div>`;
@@ -595,9 +624,9 @@ function openDetail(uid){
 }
 
 // ================= dokončení domu, export =================
-const CSV_HEAD='dum;byt;mistnost;radiove_id;mozna_id;cislo_vodomeru;vyrobce;typ;stav;detail_stavu;naskenovano;prvni_vysilani;posledni_vysilani;pocet_vysilani;signal_dbm;kod_ze_stitku';
+const CSV_HEAD='dum;byt;mistnost;radiove_id;mozna_id;cislo_vodomeru;vyrobce;typ;stav;detail_stavu;montoval;naskenovano;prvni_vysilani;posledni_vysilani;pocet_vysilani;signal_dbm;kod_ze_stitku';
 function csvOf(rows){return '﻿'+[CSV_HEAD].concat(rows.slice().sort((a,b)=>flatSort(a.house,b.house)||flatSort(a.flat,b.flat)).map(r=>{const s=stateOf(r);
-  return [r.house,r.flat,r.room,r.id,r.id?'':(r.cands||[]).join(' '),r.serial,manName(r.man)||r.maker||'',typeName(r.type),s.t,s.long,dtm(r.scanned),dtm(r.first),dtm(r.last),r.count||0,r.rssi??'',r.raw].map(v=>String(v??'').replace(/[;\r\n]/g,',')).join(';')})).join('\r\n')}
+  return [r.house,r.flat,r.room,r.id,r.id?'':(r.cands||[]).join(' '),r.serial,manName(r.man)||r.maker||'',typeName(r.type),s.t,s.long,r.who||'',dtm(r.scanned),dtm(r.first),dtm(r.last),r.count||0,r.rssi??'',r.raw].map(v=>String(v??'').replace(/[;\r\n]/g,',')).join(';')})).join('\r\n')}
 const fname=p=>(p+'_'+new Date().toISOString().slice(0,10)).replace(/[^\w\-]+/g,'_')+'.csv';
 function download(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/csv'}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 async function shareCsv(name,text,title){
@@ -608,9 +637,12 @@ async function shareCsv(name,text,title){
 function openFinish(){
   const rows=installs.filter(r=>(r.house||'')===(place.house||''));const st=rows.map(r=>({r,s:stateOf(r)}));
   const ok=st.filter(x=>x.s.k==='ok').length,open=st.filter(x=>x.s.k!=='ok');
+  const whoCnt={};rows.forEach(r=>{const w=r.who||'neuvedeno';whoCnt[w]=(whoCnt[w]||0)+1});
+  const whoLine=Object.entries(whoCnt).map(([w,c])=>`${esc(w)} ${c}`).join(' · ');
   $('finishBody').innerHTML=`<div class="darkhead"><div class="phead"><div><div class="eyebrow">dokončení domu</div></div><button class="iconbtn" data-close aria-label="Zavřít" style="color:#fff">✕</button></div>
       <h2>${esc(place.house||'bez domu')}</h2>
-      <div class="big3"><div><b>${rows.length}</b><span>měřidel</span></div><div><b>${ok}</b><span>vysílá</span></div><div><b>${open.length}</b><span>ke kontrole</span></div></div></div>
+      <div class="big3"><div><b>${rows.length}</b><span>měřidel</span></div><div><b>${ok}</b><span>vysílá</span></div><div><b>${open.length}</b><span>ke kontrole</span></div></div>${rows.length?`<div style="font-size:13px;color:rgba(255,255,255,.68)">montovali: ${whoLine}</div>`:''}</div>
+    <div style="font-size:14px;color:var(--muted)">Montovalo víc lidí? Před uzavřením převezměte jejich záznamy: menu ⋮ → převzít záznamy.</div>
     ${open.length?'<div class="eyebrow">ke kontrole</div><div class="list">'+open.map(({r,s})=>`<button class="mrow" data-uid="${r.uid}" style="padding:10px 0"><span style="flex:1"><b style="color:var(--ink)">byt ${esc(r.flat)} · ${esc(r.room)}</b><br><span class="mono" style="font-size:13px">${r.id||esc((r.cands||[]).join(' / '))}</span></span><span style="font-size:13px;text-align:right;color:${s.k==='prob'?'var(--bad)':'var(--muted)'}">${s.long}</span></button>`).join('')+'</div>':(rows.length?'<div style="font-size:16px;color:var(--ink)">Všechna měřidla v domě vysílají.</div>':'<div style="color:var(--muted)">V tomto domě zatím nejsou žádná měřidla.</div>')}
     <div class="acts" style="flex-direction:column"><button class="btn primary" id="fnShare" style="height:54px" ${rows.length?'':'disabled'}>sdílet tabulku (e-mail, Teams…)</button><button class="btn" data-close>pokračovat v montáži</button></div>`;
   $('finishBody').querySelectorAll('[data-uid]').forEach(b=>b.onclick=()=>openDetail(b.dataset.uid));
@@ -631,6 +663,12 @@ function renderMenu(){
       <div class="acts"><label class="field" style="flex:1">režim příjmu<select id="mMode">${Object.entries(MODES).map(([k,v])=>`<option value="${k}" ${+k===settings.mode?'selected':''}>${v}</option>`).join('')}</select></label>
         <button class="btn" id="mRx" style="align-self:end;height:46px">${s.rx?'zastavit příjem':'spustit příjem'}</button></div>`
       :`<button class="btn primary" id="mConn" style="height:50px">připojit EWR-TD</button>`}
+    <div class="eyebrow" style="margin-top:6px">sdílení mezi montážníky</div>
+    <button class="mi" id="mQrOut">předat záznamy kolegovi (QR)</button>
+    <button class="mi" id="mQrIn">převzít záznamy od kolegy (QR)</button>
+    <button class="mi" id="mFileOut">poslat záznamy souborem</button>
+    <button class="mi" id="mFileIn">načíst soubor od kolegy</button>
+    <div class="eyebrow" style="margin-top:6px">ostatní</div>
     <button class="mi" id="mDiag">měřidla v dosahu (${meters.size})</button>
     <button class="mi" id="mAll">sdílet tabulku – všechny domy (${installs.length})</button>
     <button class="mi" id="mRaw">stáhnout zachycené telegramy</button>
@@ -638,21 +676,28 @@ function renderMenu(){
     <label class="mi" style="display:flex;align-items:center;gap:10px;min-height:52px;border-bottom:1px solid var(--b1)"><input type="checkbox" id="mAllDev" ${settings.allDev?'checked':''} style="width:22px;height:22px">zobrazit všechna Bluetooth zařízení</label>
     <button class="mi" id="mDemo">${isDemo?'ukončit demo':'demo bez EWR-TD'}</button>
     ${c&&!isDemo?'<button class="mi" id="mDisc">odpojit EWR-TD (příjem se vypne)</button>':''}
-    <button class="mi" id="mClear" style="color:var(--bad)">vymazat data montáže</button>`;
+    <button class="mi" id="mClearAir" style="color:var(--bad)">vymazat zachycená vysílání z okolí (${pl(meters.size,'měřidlo','měřidla','měřidel')})</button>
+    <button class="mi" id="mClear" style="color:var(--bad)">vymazat data montáže</button>
+    <div style="font-size:13px;color:var(--muted);padding-top:6px">Soukromí: všechna data jsou uložená jen v tomto zařízení. Aplikace nic neodesílá na internet – ven jdou jen to, co sami sdílíte (tabulka, soubor, QR kód).</div>`;
   const on=(id,f)=>{const e=$(id);if(e)e.onclick=f};
   on('mConn',()=>{closeSheets();connect()});
   on('mRx',()=>setRx(!(devState&&devState.rx)).then(()=>dirty=true));
   const mm=$('mMode');if(mm)mm.onchange=e=>{settings.mode=+e.target.value;LS('ewrtd_settings',settings);if(devState&&devState.rx)setRx(true)};
-  on('mDiag',openDiag);on('mHelp',()=>openSheet('shHelp'));
+  on('mDiag',openDiag);
+  on('mQrOut',openQrOut);on('mQrIn',()=>{closeSheets();qrParts=null;openScanner('import')});
+  on('mFileOut',fileOut);on('mFileIn',()=>$('fileIn').click());on('mHelp',()=>openSheet('shHelp'));
   on('mAll',()=>shareCsv(fname('montaz_vse'),csvOf(installs),'Montáž – všechny domy'));
   on('mRaw',()=>download(fname('telegramy'),'﻿cas;vyrobce;id;signal_dbm;hex\r\n'+raw.map(o=>[dtm(o.t),o.man||'',o.id||'',o.rssi,o.hex].join(';')).join('\r\n')));
   $('mAllDev').onchange=e=>{settings.allDev=e.target.checked;LS('ewrtd_settings',settings)};
   on('mDemo',()=>{closeSheets();isDemo?stopDemo():startDemo()});
   on('mDisc',()=>{closeSheets();disconnect()});
+  on('mClearAir',()=>{if(!confirm('Vymazat všechna zachycená vysílání z okolí?\n\nZáznamy montáže zůstanou, včetně potvrzení, že měřidla vysílala.'))return;
+    meters.clear();raw=[];LS('ewrtd_meters',{meters:[]});closeSheets();dirty=true;toast('Vysílání z okolí vymazána.')});
   on('mClear',()=>{if(confirm('Vymazat všechna data montáže ve všech domech? Nejdřív si je případně sdílejte.')){installs=[];saveInstalls();closeSheets();dirty=true}});
 }
 $('bMenu').onclick=()=>{renderMenu();openSheet('shMenu')};
 $('bConnect').onclick=connect;
+$('bDisconnect').onclick=()=>{const wasDemo=isDemo;disconnect();toast(wasDemo?'Demo ukončeno.':'EWR-TD odpojeno, příjem vypnut. Zařízení vypněte tlačítkem, jinak se samo vypne do 30 min.')};
 
 function openDiag(){
   const rows=[...meters.values()].sort((a,b)=>(b.rssi??-999)-(a.rssi??-999));
@@ -663,6 +708,123 @@ function openDiag(){
     ${rows.slice(0,400).map(m=>`<tr><td class="mono">${m.id}</td><td>${esc(manName(m.man))}</td><td>${esc(typeName(m.type))}</td><td>${m.rssi} dBm</td><td>${m.count}</td><td>${tm(m.last)}</td><td>${ids.has(m.id)?'v montáži':''}</td></tr>`).join('')}</tbody></table></div>`;
   openSheet('shDiag');
 }
+
+// ================= sdílení mezi montážníky =================
+// kompaktní zápis záznamu: i=ID, c=možná ID, h=dům, f=byt, r=místnost, s=č. vodoměru, w=montážník, t=čas skenu, k=kód ze štítku
+const pack=r=>({i:r.id||'',c:r.id?undefined:r.cands,h:r.house,f:r.flat,r:r.room,s:r.serial||undefined,w:r.who||undefined,t:Math.round(+r.scanned/1000),k:r.raw});
+const unpack=o=>({id:o.i||'',cands:o.i?null:(o.c||idCandidates(o.k||'')),house:o.h||'',flat:o.f||'',room:o.r||'',serial:o.s||'',who:o.w||'',scanned:new Date((o.t||0)*1000),raw:o.k||o.i||''});
+const placeOf=r=>`${r.house}, byt ${r.flat}, ${r.room}`;
+function mergeRecords(list){
+  const res={added:0,same:0,conflicts:[]};
+  list.forEach(n=>{
+    const ex=n.id?installs.find(r=>r.id===n.id):installs.find(r=>!r.id&&r.raw===n.raw);
+    if(ex){
+      if(ex.house===n.house&&ex.flat===n.flat&&ex.room===n.room){if(!ex.serial&&n.serial)ex.serial=n.serial;if(!ex.who&&n.who)ex.who=n.who;res.same++}
+      else res.conflicts.push({mine:ex,theirs:n});
+      return;
+    }
+    const r=Object.assign({uid:Date.now().toString(36)+Math.random().toString(36).slice(2,8),src:'import',handed:true,first:null,last:null,count:0,rssi:null,man:'',type:null},n);
+    fillFromMeter(r);installs.push(r);res.added++;
+  });
+  saveInstalls();dirty=true;return res;
+}
+function showMerge(res,from){
+  const draw=()=>{
+    const open=res.conflicts.filter(c=>!c.done);
+    $('importBody').innerHTML=`<div class="phead"><div><div class="eyebrow">převzato${from?' od '+esc(from):''}</div><h2>${pl(res.added,'nový záznam','nové záznamy','nových záznamů')}</h2></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
+      <div style="font-size:15px">${res.same?pl(res.same,'záznam','záznamy','záznamů')+' už jste měl stejně. ':''}${open.length?`<b style="color:var(--bad)">${pl(open.length,'měřidlo je zapsané','měřidla jsou zapsaná','měřidel je zapsaných')} na jiném místě</b> – vyberte, které místo platí:`:'Vše je v pořádku.'}</div>
+      <div class="list">${open.map((c,i)=>`<div class="li" style="display:grid;gap:6px"><b class="mono" style="color:var(--ink)">${c.mine.id}</b>
+        <button class="btn sm" data-k="${i}" data-a="mine" style="text-align:left">ponechat: ${esc(placeOf(c.mine))}${c.mine.who?' ('+esc(c.mine.who)+')':''}</button>
+        <button class="btn sm" data-k="${i}" data-a="theirs" style="text-align:left">převzít: ${esc(placeOf(c.theirs))}${c.theirs.who?' ('+esc(c.theirs.who)+')':''}</button></div>`).join('')}</div>
+      <div class="acts"><button class="btn primary grow" data-close>hotovo</button></div>`;
+    $('importBody').querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{const c=open[+b.dataset.k];
+      if(b.dataset.a==='theirs'){Object.assign(c.mine,{house:c.theirs.house,flat:c.theirs.flat,room:c.theirs.room,who:c.theirs.who||c.mine.who});if(!c.mine.serial)c.mine.serial=c.theirs.serial;saveInstalls();dirty=true}
+      c.done=true;draw()});
+  };
+  draw();openSheet('shImport');
+}
+// --- QR: záznamy se rozdělí do několika kódů, kolega je naskenuje v libovolném pořadí ---
+let qrTimer=null,qrParts=null;
+function openQrOut(){
+  const inHouse=installs.filter(r=>(r.house||'')===(place.house||''));
+  const notSent=inHouse.filter(r=>r.src!=='import'&&!r.handed);
+  let sel=notSent.length?'new':'all',idx=0,codes=[],recs=[];
+  const build=()=>{recs=sel==='new'?notSent:inHouse;
+    const json=JSON.stringify({w:settings.who||'',d:recs.map(pack)});const sess=Math.random().toString(36).slice(2,6);const N=Math.max(1,Math.ceil(json.length/350));
+    codes=[];for(let i=0;i<N;i++){const q=qrcode(0,'M');q.addData(`EWRTD1|${sess}|${i+1}|${N}|`+json.slice(i*350,(i+1)*350));q.make();codes.push(q.createSvgTag({cellSize:4,margin:4,scalable:true}))}idx=0};
+  const draw=()=>{
+    $('qrBody').innerHTML=`<div class="phead"><div><div class="eyebrow">předat záznamy</div><h2>${esc(place.house||'bez domu')}</h2></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
+      <div class="seg"><button data-s="new" class="${sel==='new'?'sel':''}">nepředané (${notSent.length})</button><button data-s="all" class="${sel==='all'?'sel':''}">všechny v domě (${inHouse.length})</button></div>
+      ${recs.length?`<div class="qrbox">${codes[idx]}</div>
+      <div class="acts" style="align-items:center"><button class="btn" id="qPrev">‹</button><span class="grow" style="text-align:center;font-size:16px;color:var(--ink)">kód ${idx+1} z ${codes.length} · ${recs.length} záznamů</span><button class="btn" id="qNext">›</button></div>
+      <div style="font-size:14px;color:var(--muted)">Kolega otevře menu ⋮ → <b>převzít záznamy (QR)</b> a namíří telefon na tento displej.${codes.length>1?' Kódy se střídají samy.':''}</div>
+      <div class="acts"><button class="btn primary grow" id="qDone">hotovo – předáno</button></div>`:'<div style="color:var(--muted)">Žádné záznamy k předání.</div>'}`;
+    $('qrBody').querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{sel=b.dataset.s;build();draw()});
+    const on=(id,f)=>{const e=$(id);if(e)e.onclick=f};
+    on('qPrev',()=>{idx=(idx-1+codes.length)%codes.length;draw()});on('qNext',()=>{idx=(idx+1)%codes.length;draw()});
+    on('qDone',()=>{recs.forEach(r=>{if(r.src!=='import')r.handed=true});saveInstalls();clearInterval(qrTimer);closeSheets();toast('předáno: '+pl(recs.length,'záznam','záznamy','záznamů'))});
+  };
+  build();draw();openSheet('shQr');
+  clearInterval(qrTimer);qrTimer=setInterval(()=>{if($('shQr').hidden){clearInterval(qrTimer);return}if(codes.length>1){idx=(idx+1)%codes.length;const b=$('qrBody').querySelector('.qrbox');if(b){b.innerHTML=codes[idx];const t=$('qrBody').querySelector('.acts .grow');if(t)t.textContent=`kód ${idx+1} z ${codes.length} · ${recs.length} záznamů`}}},1800);
+}
+function importPart(val){
+  const m=String(val).match(/^EWRTD1\|(\w+)\|(\d+)\|(\d+)\|([\s\S]*)$/);
+  if(!m){$('scMsg').textContent='to není kód z aplikace EWR-TD montáž';return}
+  const [,sess,i,N,chunk]=m;
+  if(!qrParts||qrParts.sess!==sess)qrParts={sess,N:+N,parts:{}};
+  if(qrParts.parts[i]==null){qrParts.parts[i]=chunk;beep(0);vib(40)}
+  const have=Object.keys(qrParts.parts).length;
+  $('scMsg').textContent=`převzato ${have} z ${qrParts.N} kódů`;
+  if(have===qrParts.N){
+    closeScanner();
+    try{const json=Array.from({length:qrParts.N},(_,k)=>qrParts.parts[k+1]).join('');const o=JSON.parse(json);showMerge(mergeRecords(o.d.map(unpack)),o.w)}
+    catch(e){toast('Záznamy se nepodařilo načíst: '+e.message,{err:true})}
+    qrParts=null;
+  }
+}
+// --- soubor ---
+async function fileOut(){
+  const inHouse=installs.filter(r=>(r.house||'')===(place.house||''));
+  const text=JSON.stringify({app:'ewrtd-montaz',v:1,w:settings.who||'',exported:new Date().toISOString(),d:inHouse.map(pack)});
+  const name=fname('zaznamy_'+(place.house||'dum')+'_'+(settings.who||'montaznik')).replace(/\.csv$/,'.json');
+  const file=new File([text],name,{type:'application/json'});
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Záznamy montáže '+place.house});return}}catch(e){if(e.name==='AbortError')return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast('Soubor uložen do stažených souborů.');
+}
+function parseCsvRecords(text){
+  const lines=text.replace(/^\ufeff/,'').split(/\r?\n/).filter(Boolean);const head=lines.shift().split(';');const ix=k=>head.indexOf(k);
+  if(ix('radiove_id')<0||ix('dum')<0)throw new Error('neznámý formát souboru');
+  return lines.map(l=>{const c=l.split(';');const id=c[ix('radiove_id')]||'';const raw=c[ix('kod_ze_stitku')]||id;
+    const dt=v=>{const m=(v||'').match(/(\d+)\. ?(\d+)\. ?(\d{4}) (\d+):(\d+)(?::(\d+))?/);return m?new Date(+m[3],m[2]-1,+m[1],+m[4],+m[5],+(m[6]||0)):new Date()};
+    return {id,cands:id?null:idCandidates(raw),house:c[ix('dum')]||'',flat:c[ix('byt')]||'',room:c[ix('mistnost')]||'',serial:c[ix('cislo_vodomeru')]||'',who:ix('montoval')>=0?c[ix('montoval')]:'',scanned:dt(c[ix('naskenovano')]),raw}})
+}
+$('fileIn').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{const t=await f.text();let list,from='';
+    if(t.trim().startsWith('{')){const o=JSON.parse(t);if(!o.d)throw new Error('neznámý formát souboru');list=o.d.map(unpack);from=o.w}else list=parseCsvRecords(t);
+    closeSheets();showMerge(mergeRecords(list),from)}
+  catch(err){toast('Soubor se nepodařilo načíst: '+err.message,{err:true})}
+};
+
+// ================= vizualizace příjmu =================
+let blinkT=null;
+function blink(){const d=$('actDot'),r=$('tRx');d&&d.classList.add('on');r&&r.classList.add('flash');clearTimeout(blinkT);blinkT=setTimeout(()=>{d&&d.classList.remove('on');r&&r.classList.remove('flash')},250)}
+function renderAct(){
+  const on=connected()&&devState&&devState.rx;
+  $('actStrip').hidden=!connected();
+  if(!connected())return;
+  const now=Date.now(),B=20,W=3000,b=new Array(B).fill(0);
+  for(let i=raw.length-1;i>=0;i--){const age=now-raw[i].t;if(age>=B*W)break;b[B-1-Math.floor(age/W)]++}
+  const perMin=raw.filter(o=>now-o.t<60000).length,near=[...meters.values()].filter(m=>now-m.last<5*60000).length,max=Math.max(4,...b);
+  $('actBars').innerHTML=b.map(n=>`<i style="height:${Math.max(2,Math.round(20*n/max))}px;opacity:${n?1:.3}"></i>`).join('');
+  $('actDot').classList.toggle('idle',!on);
+  $('actTxt').innerHTML=!on?'příjem je vypnutý – zapnete v menu':perMin?`<b>${perMin}</b> vysílání/min · ${pl(near,'měřidlo','měřidla','měřidel').replace(/^(\d+)/,'<b>$1</b>')} v okolí`:'příjem běží – zatím nic nezachyceno';
+}
+setInterval(renderAct,1000);
+
+// ================= soukromí =================
+let privacyShown=false;
+function privacyNote(){if(privacyShown)return;privacyShown=true;setTimeout(()=>toast('Data zůstávají jen v tomto telefonu, na internet se nic neodesílá. Ven jdou jen tehdy, když je sami sdílíte.',{ms:8000}),600)}
 
 // ================= displej nezhasne při příjmu =================
 let wakeLock=null;
@@ -683,7 +845,7 @@ function startDemo(){
     const pend=installs.filter(r=>!r.first&&Date.now()-r.scanned>4000&&Math.abs(hashc(r.uid))%5!==0);
     if(pend.length&&Math.random()<.5){const r=pend[0];const id=r.id||(r.cands||[])[0];if(id){onFrame(demoFrame(id,'APA',7,5,58));return}}
     const p=demo.pool[Math.floor(Math.random()*demo.pool.length)];onFrame(demoFrame(p.id,p.man,p.type,p.ver,p.r+Math.floor(Math.random()*6)))},700);
-  toast('Demo: simulované EWR-TD. Naskenujte nebo opište libovolné číslo.');dirty=true;
+  toast('Demo: simulované EWR-TD. Naskenujte nebo opište libovolné číslo.');privacyNote();dirty=true;
 }
 function stopDemo(){clearInterval(demo.timer);clearInterval(statTimer);isDemo=false;devState=null;rxSince=null;dirty=true}
 const hashc=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))|0;return h};
