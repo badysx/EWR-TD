@@ -171,11 +171,6 @@ main .wrap{padding:8px 16px 150px}
   <button class="btn sm primary lead-only" id="bConnect">připojit</button><button class="btn sm lead-only" id="bDisconnect" hidden>odpojit</button>
   <button class="iconbtn" id="bMenu" aria-label="Menu"><svg width="22" height="22" viewBox="0 0 24 24" fill="#000" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
 </div>
-  <div class="actstrip lead-only" id="actStrip" hidden><div class="wrap">
-    <span class="pulse" id="actDot"></span>
-    <span id="actTxt">příjem běží</span>
-    <span class="actbars" id="actBars" aria-hidden="true"></span>
-  </div></div>
 </header>
 
 <section class="place"><div class="wrap">
@@ -202,6 +197,7 @@ main .wrap{padding:8px 16px 150px}
       <li class="inst-only">Vyberte místnost a <b>naskenujte štítek</b> měřidla.</li>
       <li class="inst-only">Záznamy předejte vedoucímu: menu ⋮ → <b>předat záznamy (QR)</b> nebo souborem.</li>
     </ol>
+    <div style="font-size:14px;border-top:1px solid var(--b1);padding-top:10px"><b>Soukromí:</b> všechna data zůstávají jen v tomto telefonu, aplikace nic neodesílá na internet. Ven jdou jen data, která sami sdílíte (tabulka, soubor, QR kód).</div>
   </div>
 </div></main>
 
@@ -268,7 +264,7 @@ main .wrap{padding:8px 16px 150px}
   <div class="phead"><div><div class="eyebrow">nápověda</div><h2>když něco nejde</h2></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
   <div class="list" style="font-size:15px">
     <div class="li lead-only"><span><b>EWR-TD se nepřipojí.</b> Ukončete aplikaci EWM (Nastavení → Aplikace → EWM → Vynutit ukončení), v nastavení Bluetooth telefonu u EWR-TD zvolte Zapomenout, vypněte a zapněte Bluetooth. Telefon musí mít povolená „Zařízení v okolí“, u starších Androidů i polohu.</span></div>
-    <div class="li lead-only"><span><b>Zařízení není v seznamu.</b> V menu zapněte „zobrazit všechna Bluetooth zařízení“. EWR-TD nesmí být připojené k jinému telefonu nebo počítači.</span></div>
+    <div class="li lead-only"><span><b>Zařízení není v seznamu.</b> Zkontrolujte, že je EWR-TD zapnuté a nabité (svítí LED). EWR-TD nesmí být připojené k jinému telefonu nebo počítači.</span></div>
     <div class="li"><span><b>Kód nejde přečíst.</b> Přiblížení 2–3×, 20–30 cm od štítku, přepněte kameru, zapněte svítilnu. Jinak „nejde přečíst?“ a vyberte měřidlo podle signálu nebo opište číslo.</span></div>
     <div class="li lead-only"><span><b>Měřidlo „čeká“.</b> Vodoměry vysílají zhruba každou minutu. Pokud ani po 10 minutách nevysílá, zobrazí se jako problém – zkontrolujte montáž modulu.</span></div>
     <div class="li"><span><b>Prohlížeč.</b> Chrome na Androidu a počítači, Edge na počítači. Na iPhonu prohlížeč Bluefy.</span></div>
@@ -353,7 +349,7 @@ async function connect(){
   if(isDemo)return;
   if(!navigator.bluetooth){showConnErr(!window.isSecureContext?'Aplikace musí běžet z adresy https://.':'Tento prohlížeč neumí Bluetooth. Použijte Chrome (Android, PC), Edge (PC) nebo Bluefy (iPhone).');return}
   try{
-    dev=await navigator.bluetooth.requestDevice(settings.allDev?{acceptAllDevices:true,optionalServices:[SVC]}:{filters:[{namePrefix:'EWR'}],optionalServices:[SVC]});
+    dev=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'EWR'}],optionalServices:[SVC]});
     let s=null,err=null;
     for(let i=1;i<=3&&!s;i++){
       try{setTop('wait',`připojuji (pokus ${i}/3)…`);const g=await lim(dev.gatt.connect(),12000,'připojení');await sleep(600);s=await lim(g.getPrimaryService(SVC),8000,'hledání služby')}
@@ -367,7 +363,7 @@ async function connect(){
     await readStatus();
     if(!devState||!devState.rx||devState.mode!==settings.mode)await setRx(true);   // příjem se zapne sám
     clearInterval(statTimer);statTimer=setInterval(readStatus,15000);
-    toast('EWR-TD připojeno, příjem běží');privacyNote();
+    toast('EWR-TD připojeno, příjem běží');
   }catch(e){
     if(e.name==='NotFoundError'&&/cancel/i.test(e.message)){setTop();return}
     try{dev&&dev.gatt.disconnect()}catch(x){}
@@ -701,13 +697,12 @@ function renderMenu(){
     <button class="mi" id="mAll">sdílet tabulku – všechny domy (${installs.length})</button>
     ${lead?'<button class="mi" id="mRaw">stáhnout zachycené telegramy</button>':''}
     <button class="mi" id="mHelp">nápověda</button>
-    ${lead?`<label class="mi" style="display:flex;align-items:center;gap:10px;min-height:52px;border-bottom:1px solid var(--b1)"><input type="checkbox" id="mAllDev" ${settings.allDev?'checked':''} style="width:22px;height:22px">zobrazit všechna Bluetooth zařízení</label>
-    <button class="mi" id="mDemo">${isDemo?'ukončit demo':'demo bez EWR-TD'}</button>
+    ${lead?`<button class="mi" id="mDemo">${isDemo?'ukončit demo':'demo bez EWR-TD'}</button>
     ${c&&!isDemo?'<button class="mi" id="mDisc">odpojit EWR-TD (příjem se vypne)</button>':''}
     <button class="mi" id="mClearAir" style="color:var(--bad)">vymazat zachycená vysílání z okolí (${pl(meters.size,'měřidlo','měřidla','měřidel')})</button>`:''}
     <button class="mi" id="mRole">změnit roli (teď: ${lead?'vedoucí instalace':'montážník'})</button>
     <button class="mi" id="mClear" style="color:var(--bad)">vymazat data montáže</button>
-    <div style="font-size:13px;color:var(--muted);padding-top:6px">Soukromí: všechna data jsou uložená jen v tomto zařízení. Aplikace nic neodesílá na internet – ven jdou jen to, co sami sdílíte (tabulka, soubor, QR kód).</div>`;
+    <div style="font-size:13px;color:var(--muted);padding-top:6px">Soukromí: všechna data jsou uložená jen v tomto zařízení. Aplikace nic neodesílá na internet – ven jdou jen data, která sami sdílíte (tabulka, soubor, QR kód).</div>`;
   const on=(id,f)=>{const e=$(id);if(e)e.onclick=f};
   on('mConn',()=>{closeSheets();connect()});
   on('mRx',()=>setRx(!(devState&&devState.rx)).then(()=>dirty=true));
@@ -717,7 +712,6 @@ function renderMenu(){
   on('mFileOut',fileOut);on('mFileIn',()=>$('fileIn').click());on('mHelp',()=>openSheet('shHelp'));
   on('mAll',()=>shareCsv(fname('montaz_vse'),csvOf(installs),'Montáž – všechny domy'));
   on('mRaw',()=>download(fname('telegramy'),'﻿cas;vyrobce;id;signal_dbm;hex\r\n'+raw.map(o=>[dtm(o.t),o.man||'',o.id||'',o.rssi,o.hex].join(';')).join('\r\n')));
-  if($('mAllDev'))$('mAllDev').onchange=e=>{settings.allDev=e.target.checked;LS('ewrtd_settings',settings)};
   on('mRole',async()=>{closeSheets();if(isDemo)stopDemo();else if(connected())await disconnect();showWelcome()});
   on('mDemo',()=>{closeSheets();isDemo?stopDemo():startDemo()});
   on('mDisc',()=>{closeSheets();disconnect()});
@@ -848,6 +842,7 @@ $('fileIn').onchange=async e=>{
 let blinkT=null;
 function blink(){const d=$('actDot'),r=$('tRx');d&&d.classList.add('on');r&&r.classList.add('flash');clearTimeout(blinkT);blinkT=setTimeout(()=>{d&&d.classList.remove('on');r&&r.classList.remove('flash')},250)}
 function renderAct(){
+  if(!$('actStrip'))return;
   const on=connected()&&devState&&devState.rx;
   $('actStrip').hidden=!connected();
   if(!connected())return;
@@ -883,7 +878,7 @@ function startDemo(){
     const pend=installs.filter(r=>!r.first&&Date.now()-r.scanned>4000&&Math.abs(hashc(r.uid))%5!==0);
     if(pend.length&&Math.random()<.5){const r=pend[0];const id=r.id||(r.cands||[])[0];if(id){onFrame(demoFrame(id,'APA',7,5,58));return}}
     const p=demo.pool[Math.floor(Math.random()*demo.pool.length)];onFrame(demoFrame(p.id,p.man,p.type,p.ver,p.r+Math.floor(Math.random()*6)))},700);
-  toast('Demo: simulované EWR-TD. Naskenujte nebo opište libovolné číslo.');privacyNote();dirty=true;
+  toast('Demo: simulované EWR-TD. Naskenujte nebo opište libovolné číslo.');dirty=true;
 }
 function stopDemo(){clearInterval(demo.timer);clearInterval(statTimer);isDemo=false;devState=null;rxSince=null;dirty=true}
 const hashc=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))|0;return h};
