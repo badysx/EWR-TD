@@ -30,7 +30,7 @@ button{cursor:pointer}
 .top .st{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #tLabel{white-space:nowrap}
 .top .st{min-width:0;flex-shrink:1}
-@media (max-width:440px){.top .wrap{gap:6px;padding:0 0 0 12px}.cbtn{height:34px;padding:0 10px 0 8px;font-size:14px;gap:4px}.top .st{font-size:14px}.rxw{margin-left:3px;padding:1px 5px}#bMenu{width:38px}}
+@media (max-width:440px){.top .wrap{gap:6px;padding:0 0 0 12px}.cbtn{height:28px;padding:0 8px 0 6px;font-size:13px;gap:3px}.top .st{font-size:14px}.rxw{margin-left:3px;padding:1px 5px}#bMenu{width:38px}}
 .bat{position:relative;display:inline-flex;flex-direction:column-reverse;gap:1px;width:9px;height:16px;margin-top:2px;padding:1px;border:1px solid var(--ink);border-radius:2px;flex-shrink:0;margin-right:1px}
 .bat::after{content:"";position:absolute;top:-3px;left:1.5px;width:4px;height:2px;background:var(--ink);border-radius:1px 1px 0 0}
 .bat i{flex:1;border-radius:.5px;background:transparent}
@@ -40,12 +40,12 @@ button{cursor:pointer}
 .rxw{display:inline-block;margin-left:4px;padding:1px 6px;border-radius:4px;transition:background .6s,color .6s}
 .rxw.flash{background:var(--ok);color:#fff;transition:none}
 .iconbtn{width:44px;height:44px;border:0;background:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.cbtn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px 0 11px;border-radius:6px;font-size:15px;font-weight:700;line-height:1;white-space:nowrap;flex-shrink:0;cursor:pointer;transition:transform 80ms,box-shadow 80ms,background 120ms}
-.cbtn.on{background:var(--red);border:1.5px solid var(--red);color:#fff;box-shadow:0 3px 0 var(--red-d),0 5px 12px rgba(238,0,0,.28)}
+.cbtn{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 9px 0 7px;border-radius:5px;font-size:14px;font-weight:700;line-height:1;white-space:nowrap;flex-shrink:0;cursor:pointer;transition:transform 80ms,box-shadow 80ms,background 120ms}
+.cbtn.on{background:var(--red);border:1.5px solid var(--red);color:#fff;box-shadow:0 2px 0 var(--red-d),0 3px 8px rgba(238,0,0,.25)}
 .cbtn.on:hover{background:#cc0000}
-.cbtn.off{background:#fff;border:1.5px solid var(--b3);color:var(--ink);box-shadow:0 3px 0 var(--b3),0 4px 10px rgba(0,0,0,.08)}
+.cbtn.off{background:#fff;border:1.5px solid var(--b3);color:var(--ink);box-shadow:0 2px 0 var(--b3),0 3px 6px rgba(0,0,0,.07)}
 .cbtn.off:hover{border-color:var(--ink)}
-.cbtn:active{transform:translateY(3px);box-shadow:0 0 0 transparent}
+.cbtn:active{transform:translateY(2px);box-shadow:0 0 0 transparent}
 .cbtn:focus-visible{outline:3px solid rgba(238,0,0,.35);outline-offset:2px}
 .top .wrap{overflow:visible}
 .btn{height:44px;padding:0 16px;border:1.5px solid var(--b3);background:#fff;color:var(--ink);font-size:15px;border-radius:0}
@@ -182,7 +182,7 @@ main .wrap{padding:8px 16px 150px}
   <b id="tLabel">EWR-TD</b>
   <span class="st" id="tSt"><span id="tInfo">nepřipojeno</span><span id="tRx" class="rxw" hidden>přijímá</span></span>
   <span style="flex:1"></span>
-  <button class="cbtn on lead-only" id="bConnect"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7l10 10-5 5V2l5 5L7 17"/></svg><span>připojit</span></button><button class="cbtn off lead-only" id="bDisconnect" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7l10 10-5 5V2l5 5L7 17"/><path d="M3 3l18 18"/></svg><span>odpojit</span></button>
+  <button class="cbtn on lead-only" id="bConnect"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7l10 10-5 5V2l5 5L7 17"/></svg><span>připojit</span></button><button class="cbtn off lead-only" id="bDisconnect" hidden><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7l10 10-5 5V2l5 5L7 17"/><path d="M3 3l18 18"/></svg><span>odpojit</span></button>
   <button class="iconbtn" id="bMenu" aria-label="Menu"><svg width="22" height="22" viewBox="0 0 24 24" fill="#000" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>
 </div>
 </header>
