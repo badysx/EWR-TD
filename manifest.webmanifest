@@ -1,7 +1,7 @@
 {
   "name": "EWR-Sklad",
   "short_name": "EWR-Sklad",
-  "description": "Inventura vodoměrů a rádiových modulů: skenování štítků, porovnání s evidencí, kontrola vysílání přes EWR-TD.",
+  "description": "Načtení zásilky vodoměrů rádiem: pozadí, zásilka, rozdíl = rádiová čísla modulů pro zákazníka.",
   "lang": "cs",
   "start_url": "./",
   "scope": "./",
