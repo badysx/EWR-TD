@@ -178,7 +178,7 @@ main .wrap{padding:8px 16px 150px}
 .zsteps{display:flex;gap:6px}.zsteps span{flex:1;display:flex;align-items:center;gap:6px;padding:8px;border:1.5px solid var(--b2);font-size:14px;color:var(--muted)}
 .zsteps b{width:22px;height:22px;border-radius:999px;display:grid;place-items:center;background:var(--b1);color:var(--ink);font-size:12px}
 .zsteps .act{border-color:var(--red);color:var(--ink);font-weight:700}.zsteps .act b{background:var(--red);color:#fff}.zsteps .ok b{background:var(--ok);color:#fff}
-.zbig{display:flex;align-items:baseline;gap:12px}.zbig>b{flex-shrink:0}@media (max-width:400px){.zbig .zrest{display:none}}.zbig .zend{margin-left:auto;white-space:nowrap}.zbig .zend b{font-size:28px;font-weight:900;color:var(--ink);font-variant-numeric:tabular-nums}.zbig b{font-size:56px;font-weight:900;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}.zbig span{color:var(--muted);font-size:15px}
+.zbig{display:flex;align-items:baseline;gap:12px}.zbig>b{flex-shrink:0}@media (max-width:400px){.zbig .zrest{display:none}}.zbig .zend{margin-left:auto;white-space:nowrap}.zbig .zend b{margin-left:8px;font-size:28px;font-weight:900;color:var(--ink);font-variant-numeric:tabular-nums}.zbig b{font-size:56px;font-weight:900;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}.zbig span{color:var(--muted);font-size:15px}
 .zmeter{height:8px;background:var(--b1)}.zmeter i{display:block;height:100%;background:var(--red);transition:width .9s linear}
 .zcount{font-size:16px;color:var(--body)}.zcount b{font-size:22px;color:var(--ink)}
 .okbox{background:#e8f6ee;border:1px solid #b9e3c9;color:#145c35;padding:10px 12px;font-size:15px}
@@ -270,7 +270,7 @@ const MEDIUM={0x02:'elektřina',0x03:'plyn',0x04:'teplo',0x06:'TUV',0x07:'voda',
 const MAN={APA:'Apator',KAM:'Kamstrup',DME:'Diehl',HYD:'Diehl',QDS:'Qundis',SON:'Sontex',LSE:'Siemens',ITW:'Itron',SEN:'Sensus',BMT:'B METERS',ZRI:'Zenner',ZRM:'Zenner',EFE:'Engelmann',TCH:'Techem',IST:'ista',LUG:'Landis+Gyr',ELS:'Elster',MAD:'Maddalena',AMT:'Aquametro',WEH:'Wehrle'};
 const typeName=t=>t==null?'':(MEDIUM[t]||'typ 0x'+h2(t));
 const manName=m=>m?(MAN[m]||m):'';
-const APP_VER=11;
+const APP_VER=12;
 const WAIT_MIN=10;   // po kolika minutách bez vysílání je měřidlo „problém“
 
 
@@ -416,19 +416,7 @@ async function connectBle(){
   if(!navigator.bluetooth){showConnErr(!window.isSecureContext?'Aplikace musí běžet z adresy https://.':'Tento prohlížeč neumí Bluetooth. Použijte Chrome (Android, PC), Edge (PC) nebo Bluefy (iPhone).');return}
   try{
     dev=await navigator.bluetooth.requestDevice({filters:[{namePrefix:'EWR'}],optionalServices:[SVC]});
-    let s=null,err=null;
-    for(let i=1;i<=3&&!s;i++){
-      try{setTop('wait',`připojuji (pokus ${i}/3)…`);const g=await lim(dev.gatt.connect(),12000,'připojení');await sleep(600);s=await lim(g.getPrimaryService(SVC),8000,'hledání služby')}
-      catch(e){err=e;try{dev.gatt.disconnect()}catch(x){}await sleep(1200)}
-    }
-    if(!s)throw err||new Error('nepodařilo se připojit');
-    dev.addEventListener('gattserverdisconnected',onDisconnected);
-    const chData=await lim(s.getCharacteristic(CH_DATA),5000,'data');chStat=await lim(s.getCharacteristic(CH_STAT),5000,'stav');chCmd=await lim(s.getCharacteristic(CH_CMD),5000,'povely');
-    chData.addEventListener('characteristicvaluechanged',e=>{const v=e.target.value;onFrame(new Uint8Array(v.buffer,v.byteOffset,v.byteLength))});
-    await lim(chData.startNotifications(),8000,'notifikace');
-    await readStatus();
-    if(!devState||!devState.rx||devState.mode!==settings.mode)await setRx(true);   // příjem se zapne sám
-    clearInterval(statTimer);statTimer=setInterval(readStatus,15000);
+    await bleSetup(false);
     toast('EWR-TD připojeno, příjem běží');
   }catch(e){
     if(e.name==='NotFoundError'&&/cancel/i.test(e.message)){setTop();return}
@@ -437,14 +425,40 @@ async function connectBle(){
   }
   dirty=true;
 }
+async function bleSetup(quiet){
+    let s=null,err=null;
+    for(let i=1;i<=3&&!s;i++){
+      try{if(!quiet)setTop('wait',`připojuji (pokus ${i}/3)…`);const g=await lim(dev.gatt.connect(),12000,'připojení');await sleep(600);s=await lim(g.getPrimaryService(SVC),8000,'hledání služby')}
+      catch(e){err=e;try{dev.gatt.disconnect()}catch(x){}await sleep(1200)}
+    }
+    if(!s)throw err||new Error('nepodařilo se připojit');
+    if(!dev._ewr){dev._ewr=1;dev.addEventListener('gattserverdisconnected',onDisconnected)}
+    const chData=await lim(s.getCharacteristic(CH_DATA),5000,'data');chStat=await lim(s.getCharacteristic(CH_STAT),5000,'stav');chCmd=await lim(s.getCharacteristic(CH_CMD),5000,'povely');
+    chData.addEventListener('characteristicvaluechanged',e=>{const v=e.target.value;onFrame(new Uint8Array(v.buffer,v.byteOffset,v.byteLength))});
+    await lim(chData.startNotifications(),8000,'notifikace');
+    await readStatus();
+    if(!devState||!devState.rx||devState.mode!==settings.mode)await setRx(true);   // příjem se zapne sám
+    clearInterval(statTimer);statTimer=setInterval(readStatus,15000);
+    gapEnd();
+}
 function showConnErr(msg){setTop('err','nepřipojeno');toast('Nepřipojeno: '+msg+' Viz menu → nápověda.',{err:true,ms:9000})}
-function onDisconnected(){clearInterval(statTimer);chStat=chCmd=null;const wasRx=devState&&devState.rx;devState=null;rxSince=null;
-  if(!manualDisc)toast(wasRx?'Spojení s EWR-TD se ztratilo. Zařízení dál přijímá – připojte ho znovu.':'Spojení s EWR-TD se ztratilo.',{err:true,ms:8000});
-  manualDisc=false;dirty=true}
+function onDisconnected(){clearInterval(statTimer);chStat=chCmd=null;devState=null;rxSince=null;
+  if(!manualDisc){gapStart();toast('Spojení s EWR-TD se ztratilo. Zkouším se znovu připojit…',{err:true,ms:8000});bleReconnect()}
+  manualDisc=false;dirty=true;setTop();if(typeof drawZas==='function')drawZas()}
+// automatické obnovení spojení: během snímání bez omezení, jinak 2 minuty
+let reconT=null;
+async function bleReconnect(){
+  clearTimeout(reconT);const t0=Date.now();
+  const tryOnce=async()=>{if(!dev||connected()||manualDisc)return;
+    const busy=zas.phase==='bg'||zas.phase==='ship';if(!busy&&Date.now()-t0>120000)return;
+    try{await bleSetup(true);toast('EWR-TD znovu připojeno, snímání pokračuje.');setTop();drawZas(true);return}catch(e){try{dev.gatt.disconnect()}catch(x){}}
+    reconT=setTimeout(tryOnce,5000)};
+  reconT=setTimeout(tryOnce,1500);
+}
 async function disconnect(){
   if(isDemo){stopDemo();return}
   if(dgOn()){await dgClose(true);return}
-  manualDisc=true;try{if(devState&&devState.rx)await setRx(false)}catch(e){}
+  manualDisc=true;clearTimeout(reconT);try{if(devState&&devState.rx)await setRx(false)}catch(e){}
   clearInterval(statTimer);try{dev&&dev.gatt.disconnect()}catch(e){}devState=null;dirty=true;
 }
 async function setRx(on){
@@ -566,11 +580,14 @@ const hashc=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))|0;retu
 
 // ================= načtení zásilky rádiem: pozadí → zásilka → rozdíl =================
 // Fáze: setup → bg (pozadí) → gap (přivézt paletu) → ship (zásilka) → done
-const ZAS0={name:'',expected:'',bgMin:10,shMin:30,phase:'setup',bgStart:0,bgEnd:0,shStart:0,shEnd:0,bg:{},sh:{},scan:{}};
-let zas=Object.assign({},ZAS0,LS('ewrsk_zas')||{});if(!zas.scan)zas.scan={};
+const ZAS0={name:'',expected:'',bgMin:10,shMin:30,phase:'setup',bgStart:0,bgEnd:0,shStart:0,shEnd:0,bg:{},sh:{},scan:{},gaps:[]};
+let zas=Object.assign({},ZAS0,LS('ewrsk_zas')||{});if(!zas.scan)zas.scan={};if(!zas.gaps)zas.gaps=[];
 let zasSaveT=null;const saveZas=(now)=>{if(now){clearTimeout(zasSaveT);zasSaveT=null;LS('ewrsk_zas',zas);return}if(!zasSaveT)zasSaveT=setTimeout(()=>{zasSaveT=null;LS('ewrsk_zas',zas)},3000)};
 let zasSort=LS('ewrsk_zassort')||{k:'last',dir:-1};
 const encName=e=>e==null?'–':e===0?'bez šifrování':e===5?'AES (mód 5)':e===7?'AES (mód 7)':'mód '+e;
+function gapStart(){if(zas.phase!=='bg'&&zas.phase!=='ship')return;const g=zas.gaps[zas.gaps.length-1];if(g&&!g.b)return;zas.gaps.push({a:Date.now()});saveZas(true);beep(1);vib([300,100,300])}
+function gapEnd(){const g=zas.gaps[zas.gaps.length-1];if(g&&!g.b){g.b=Date.now();saveZas(true)}}
+function outage(a,b){let t=0;for(const g of zas.gaps){const x=Math.max(g.a,a),y=Math.min(g.b||Date.now(),b);if(y>x)t+=y-x}return t}
 function zasFrame(o){
   const ph=zas.phase;if(ph!=='bg'&&ph!=='ship')return;
   const now=+o.t;if(ph==='bg'&&(now<zas.bgStart||now>zas.bgEnd))return;if(ph==='ship'&&(now<zas.shStart||now>zas.shEnd))return;
@@ -643,7 +660,7 @@ function zasStart(phase){
   if(!connected()){toast('Nejdřív připojte přijímač (EWR-TD nebo USB dongle).',{err:true});connect();return}
   if(devState&&!devState.rx)setRx(true);
   const now=Date.now();
-  if(phase==='bg'){zas.bg={};zas.sh={};zas.bgStart=now;zas.bgEnd=now+zas.bgMin*60000;zas.phase='bg'}
+  if(phase==='bg'){zas.bg={};zas.sh={};zas.gaps=[];zas.bgStart=now;zas.bgEnd=now+zas.bgMin*60000;zas.phase='bg'}
   else{zas.sh={};zas.shStart=now;zas.shEnd=now+zas.shMin*60000;zas.phase='ship'}
   saveZas(true);drawZas(true);
 }
@@ -658,7 +675,10 @@ function drawZas(force){
     return}
   const head=`<div class="phead"><div><div class="eyebrow">zásilka pro zákazníka</div><h2>${esc(zas.name||'nová zásilka')}</h2></div></div>`;
   const steps=`<div class="zsteps">${[['1','rádiové pozadí',['bg'].includes(ph),['gap','ship','done'].includes(ph)],['2','snímání zásilky',ph==='ship',ph==='done'],['3','výsledek',ph==='done',false]].map(([n,t,act,ok])=>`<span class="${act?'act':ok?'ok':''}"><b>${ok?'✓':n}</b>${t}</span>`).join('')}</div>`;
-  const conn=connected()?'':`<div class="warnbox">Přijímač není připojený. <button class="btn sm primary" id="zConn" style="margin-left:6px">připojit</button></div>`;
+  const busy=ph==='bg'||ph==='ship',og=zas.gaps[zas.gaps.length-1];
+  let conn=connected()?'':busy?`<div class="errbox"><b>Přijímač je odpojený – snímání teď nic nezachytává.</b>${og&&!og.b?` Výpadek od ${hhmm(og.a)}.`:''} ${dev&&!dgOn()?'Zkouším se znovu připojit…':''} <button class="btn sm primary" id="zConn" style="margin-left:6px">připojit</button></div>`
+    :`<div class="warnbox">Přijímač není připojený. <button class="btn sm primary" id="zConn" style="margin-left:6px">připojit</button></div>`;
+  if(connected()&&busy&&devState&&devState.bat!=null&&devState.bat<20)conn+=`<div class="warnbox">Slabá baterie EWR-TD (${devState.bat} %). Připojte nabíječku USB-C, jinak se přijímač během snímání vypne.</div>`;
   const keep=ph==='setup'&&b.querySelector('#zName')?{n:$('zName').value,e:$('zExp').value,bg:$('zBg').value,sh:$('zSh').value}:null;
   let body='';
   if(ph==='setup'){
@@ -693,6 +713,7 @@ function drawZas(force){
     const rows=zasRows(),n=rows.length,diff=E?n-E:0;
     body=`<div class="zbig"><b>${n}</b><span>${pl(n,'modul','moduly','modulů').replace(/^\d+ /,'')} zásilky${E?` · očekáváno ${E}`:''}</span></div>
       ${E&&diff!==0?`<div class="${diff<0?'errbox':'warnbox'}">${diff<0?`Chybí ${-diff} – některé moduly nevysílaly nebo byly i v rádiovém pozadí. Prodlužte načítání nebo zkontrolujte paletu.`:`O ${diff} víc, než se čekalo – v dosahu mohla být i jiná měřidla. Zkontrolujte moduly s jedním telegramem a slabým signálem.`}</div>`:E?'<div class="okbox">Počet souhlasí s objednávkou.</div>':''}
+      ${(()=>{const os=outage(zas.shStart,zas.shEnd),ob=outage(zas.bgStart,zas.bgEnd);return os||ob?`<div class="warnbox">${os?`Během snímání zásilky byl přijímač ${mmss(os)} min odpojen. Výsledek může být neúplný – doporučuji „načítat zásilku znovu“.`:''} ${ob?`Rádiové pozadí nebylo snímáno ${mmss(ob)} min, některé moduly z okolí se mohou objevit v zásilce navíc.`:''}</div>`:''})()}
       <div style="font-size:13px;color:var(--muted)">Rádiové pozadí: ${pl(Object.keys(zas.bg).length,'modul','moduly','modulů')} · vyloučeno ${zasExcluded()} · načítání ${dtm(new Date(zas.shStart))}–${new Date(zas.shEnd).toLocaleTimeString('cs-CZ',{hour12:false})}. Řazení: klepněte na záhlaví sloupce.</div>
       <div class="tscroll" id="zRes">${zasTableHtml(rows)}</div>
       <div class="acts" style="flex-direction:column"><button class="btn primary" id="zCsv" style="height:54px" ${n?'':'disabled'}>sdílet tabulku (e-mail, Teams…)</button>
@@ -768,14 +789,14 @@ async function connectDongle(){
           if(r.data&&r.data.byteLength){const u=new Uint8Array(r.data.buffer,r.data.byteOffset,r.data.byteLength),out=[];for(let i=0;i<u.length;i+=pk)for(let j=i+2;j<Math.min(i+pk,u.length);j++)out.push(u[j]);if(out.length)dgFeed(out)}}
         catch(e){if(dg&&dg.open){dgClose(false);toast('USB dongle se odpojil.',{err:true,ms:7000})}break}}})();
     }else{showConnErr('Tento prohlížeč neumí USB. Použijte Chrome (Android, PC) nebo Edge (PC).');return}
-    dgBuf=[];devState={t:new Date(),bat:null,mode:null,rx:true,dongle:true,ok:0,crc:0,bit:0,fw:null,hw:null};rxSince=new Date();settings.link='usb';LS('ewrsk_settings',settings);
+    dgBuf=[];gapEnd();devState={t:new Date(),bat:null,mode:null,rx:true,dongle:true,ok:0,crc:0,bit:0,fw:null,hw:null};rxSince=new Date();settings.link='usb';LS('ewrsk_settings',settings);
     toast(`${dg.name} připojen, ${baud} Bd. Přijímá v režimu nastaveném v modulu.`,{ms:6000});setTop();drawZas(true);
   }catch(e){if(e.name==='NotFoundError'){setTop();return}dg=null;showConnErr(e.message||String(e))}
 }
 async function dgClose(manual){
   const d=dg;if(!d)return;d.open=false;dg=null;devState=null;rxSince=null;
   try{if(d.kind==='serial'){try{d.reader&&await d.reader.cancel()}catch(e){}await d.port.close()}else{await d.device.close()}}catch(e){}
-  if(manual)toast('USB dongle odpojen.');setTop();drawZas(true);
+  if(manual)toast('USB dongle odpojen.');else gapStart();setTop();drawZas(true);
 }
 if(navigator.serial)navigator.serial.addEventListener('disconnect',e=>{if(dg&&dg.kind==='serial'&&e.target===dg.port){dgClose(false);toast('USB dongle se odpojil.',{err:true,ms:7000})}});
 if(navigator.usb)navigator.usb.addEventListener('disconnect',e=>{if(dg&&dg.kind==='usb'&&e.device===dg.device){dgClose(false);toast('USB dongle se odpojil.',{err:true,ms:7000})}});
