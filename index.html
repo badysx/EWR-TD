@@ -184,7 +184,9 @@ main .wrap{padding:8px 16px 150px}
 .okbox{background:#e8f6ee;border:1px solid #b9e3c9;color:#145c35;padding:10px 12px;font-size:15px}
 .zmain{display:grid;gap:12px;padding-top:14px!important}
 .rolecard{display:grid;gap:6px;text-align:left;padding:16px;background:#fff;border:1.5px solid var(--b2);border-radius:10px;font-size:15px;color:var(--body);cursor:pointer}
-.rolecard b{font-size:19px;color:var(--ink)}.rolecard:active{border-color:var(--red);background:var(--red-t)}
+.rolecard b{font-size:19px;color:var(--ink)}
+.zbtns{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.zbtns .btn{min-width:0;height:auto;min-height:44px;padding:8px 14px;line-height:1.25}
+.zsteps span{line-height:1.15}.rolecard:active{border-color:var(--red);background:var(--red-t)}
 .zmain .tscroll{max-height:none}
 </style>
 </head>
@@ -239,7 +241,7 @@ main .wrap{padding:8px 16px 150px}
   <div class="phead"><div><div class="eyebrow">nápověda</div><h2>jak načíst zásilku</h2></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
   <div class="list" style="font-size:15px">
     <div class="li"><span><b>Místo.</b> Kovový kontejner nebo jiné místo mimo dosah skladu. Telefon a EWR-TD uvnitř, dveře zavřené.</span></div>
-    <div class="li"><span><b>1. Pozadí.</b> Prázdný kontejner, výchozí 10 minut. Moduly zachycené teď se z výsledku vyloučí.</span></div>
+    <div class="li"><span><b>1. Rádiové pozadí.</b> Prázdný kontejner, výchozí 10 minut. Moduly zachycené teď se z výsledku vyloučí.</span></div>
     <div class="li"><span><b>2. Zásilka.</b> Přivezte paletu pro zákazníka a spusťte načítání, výchozí 30 minut. Moduly vysílají zhruba jednou za minutu.</span></div>
     <div class="li"><span><b>Štítky.</b> Kód, který jde přečíst (QR, čárový, DataMatrix), naskenujte tlačítkem dole. Doplní se do výsledku, i když modul nevysílá.</span></div>
     <div class="li"><span><b>Nesedí počet.</b> Méně: prodlužte načítání (načítat znovu). Víc: zkontrolujte šedé řádky s jedním telegramem a slabým signálem.</span></div>
@@ -268,7 +270,7 @@ const MEDIUM={0x02:'elektřina',0x03:'plyn',0x04:'teplo',0x06:'TUV',0x07:'voda',
 const MAN={APA:'Apator',KAM:'Kamstrup',DME:'Diehl',HYD:'Diehl',QDS:'Qundis',SON:'Sontex',LSE:'Siemens',ITW:'Itron',SEN:'Sensus',BMT:'B METERS',ZRI:'Zenner',ZRM:'Zenner',EFE:'Engelmann',TCH:'Techem',IST:'ista',LUG:'Landis+Gyr',ELS:'Elster',MAD:'Maddalena',AMT:'Aquametro',WEH:'Wehrle'};
 const typeName=t=>t==null?'':(MEDIUM[t]||'typ 0x'+h2(t));
 const manName=m=>m?(MAN[m]||m):'';
-const APP_VER=8;
+const APP_VER=10;
 const WAIT_MIN=10;   // po kolika minutách bez vysílání je měřidlo „problém“
 
 
@@ -589,7 +591,7 @@ const zasExcluded=()=>Object.keys(zas.sh).filter(k=>zas.bg[k]).length;
 const mmss=ms=>{ms=Math.max(0,ms);const s=Math.round(ms/1000);return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`};
 function zasTick(){
   const now=Date.now();
-  if(zas.phase==='bg'&&now>=zas.bgEnd){zas.phase='gap';saveZas(true);beep(1);vib([200,100,200]);toast('Pozadí načteno. Přivezte paletu a spusťte načítání zásilky.',{ms:9000})}
+  if(zas.phase==='bg'&&now>=zas.bgEnd){zas.phase='gap';saveZas(true);beep(1);vib([200,100,200]);toast('Rádiové pozadí načteno. Přivezte paletu a spusťte načítání zásilky.',{ms:9000})}
   if(zas.phase==='ship'&&now>=zas.shEnd){zas.phase='done';saveZas(true);beep(1);vib([200,100,200]);toast(`Zásilka načtena: ${pl(zasResult().length,'modul','moduly','modulů')}.`,{ms:9000});zasSort={k:'last',dir:-1}}
   drawZas();
   if(!$('shBg').hidden&&zas.phase==='bg')openBg();
@@ -614,17 +616,21 @@ function bgRows(){
 function bgCsv(){const cl=v=>String(v??'').replace(/[;\r\n]/g,',');
   return '\ufeff'+['zakazka;poradi;radiove_id;vyrobce;kod_vyrobce;typ;verze;sifrovani;pocet_telegramu;signal_posledni_dbm;signal_max_dbm;prvni_prijem;posledni_prijem;interval_s;i_v_zasilce',
     ...bgRows().map((m,i)=>[zas.name,i+1,m.id,manName(m.man),m.man,typeName(m.type),m.ver,encName(m.enc),m.n,m.rl,m.rmax,dtm(new Date(m.first)),dtm(new Date(m.last)),m.ivl??'',m.inz?'ano – vyloučeno':''].map(cl).join(';'))].join('\r\n')}
+function bgTableHtml(){const rows=bgRows();
+  return `<table class="tbl"><thead><tr>${BG_COLS.map(([k,t])=>`<th data-sort="${k}" style="cursor:pointer;user-select:none;${k===bgSort.k?'color:var(--ink)':''}">${t}${k===bgSort.k?(bgSort.dir>0?' ▲':' ▼'):''}</th>`).join('')}</tr></thead><tbody>
+    ${rows.map((m,i)=>`<tr><td>${i+1}</td><td class="mono" style="color:var(--ink)">${m.id}</td><td>${esc(manName(m.man))}</td><td>${esc(typeName(m.type))}</td><td>${m.ver}</td><td>${encName(m.enc)}</td><td>${m.n}</td><td>${m.rl!=null?m.rl+' dBm':'–'}</td><td>${m.rmax!=null?m.rmax+' dBm':'–'}</td><td>${new Date(m.first).toLocaleTimeString('cs-CZ',{hour12:false})}</td><td>${new Date(m.last).toLocaleTimeString('cs-CZ',{hour12:false})}</td><td>${m.ivl!=null?m.ivl+' s':'–'}</td><td>${m.inz?'ano – vyloučeno':''}</td></tr>`).join('')}</tbody></table>`}
+function bgSortClick(e){const th=e.target.closest('[data-sort]');if(!th)return;const k=th.dataset.sort;if(k===bgSort.k)bgSort.dir=-bgSort.dir;else bgSort={k,dir:['id','man','type','enc','i'].includes(k)?1:-1};LS('ewrsk_bgsort',bgSort);
+  if(!$('shBg').hidden)openBg();const t=$('zBgT');if(t)t.innerHTML=bgTableHtml()}
 function openBg(){
   const b=$('bgBody'),rows=bgRows(),n=rows.length,running=zas.phase==='bg';
   const sc=b.querySelector('.tscroll'),st=sc?sc.scrollTop:0;
   b.innerHTML=`<div class="phead"><div><div class="eyebrow">rádiové pozadí${running?' · načítá se':''}</div><h2>${pl(n,'modul','moduly','modulů')}</h2></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
     <div style="font-size:14px;color:var(--muted)">${zas.bgStart?`Načteno ${dtm(new Date(zas.bgStart))}–${new Date(Math.min(Date.now(),zas.bgEnd)).toLocaleTimeString('cs-CZ',{hour12:false})}. `:''}Tyto moduly se z výsledku zásilky vylučují.${zasExcluded()?` Při načítání zásilky se znovu ozvalo ${zasExcluded()}.`:''} Řazení: klepněte na záhlaví sloupce.</div>
-    ${n?`<div class="tscroll"><table class="tbl"><thead><tr>${BG_COLS.map(([k,t])=>`<th data-sort="${k}" style="cursor:pointer;user-select:none;${k===bgSort.k?'color:var(--ink)':''}">${t}${k===bgSort.k?(bgSort.dir>0?' ▲':' ▼'):''}</th>`).join('')}</tr></thead><tbody>
-    ${rows.map((m,i)=>`<tr><td>${i+1}</td><td class="mono" style="color:var(--ink)">${m.id}</td><td>${esc(manName(m.man))}</td><td>${esc(typeName(m.type))}</td><td>${m.ver}</td><td>${encName(m.enc)}</td><td>${m.n}</td><td>${m.rl!=null?m.rl+' dBm':'–'}</td><td>${m.rmax!=null?m.rmax+' dBm':'–'}</td><td>${new Date(m.first).toLocaleTimeString('cs-CZ',{hour12:false})}</td><td>${new Date(m.last).toLocaleTimeString('cs-CZ',{hour12:false})}</td><td>${m.ivl!=null?m.ivl+' s':'–'}</td><td>${m.inz?'ano – vyloučeno':''}</td></tr>`).join('')}</tbody></table></div>`
-      :`<div style="color:var(--muted)">${running?'Zatím nic nezachyceno.':'V pozadí nebyl zachycen žádný modul.'}</div>`}
-    <div class="acts"><button class="btn grow" id="bgCsv" ${n?'':'disabled'}>sdílet tabulku pozadí</button><button class="btn" data-close>zavřít</button></div>`;
+    ${n?`<div class="tscroll">${bgTableHtml()}</div>`
+      :`<div style="color:var(--muted)">${running?'Zatím nic nezachyceno.':'V rádiovém pozadí nebyl zachycen žádný modul.'}</div>`}
+    <div class="acts"><button class="btn grow" id="bgCsv" ${n?'':'disabled'}>sdílet tabulku rádiového pozadí</button><button class="btn" data-close>zavřít</button></div>`;
   const sc2=b.querySelector('.tscroll');if(sc2)sc2.scrollTop=st;
-  b.querySelectorAll('[data-sort]').forEach(th=>th.onclick=()=>{const k=th.dataset.sort;if(k===bgSort.k)bgSort.dir=-bgSort.dir;else bgSort={k,dir:['id','man','type','enc','i'].includes(k)?1:-1};LS('ewrsk_bgsort',bgSort);openBg()});
+  b.querySelector('.tscroll')&&(b.querySelector('.tscroll').onclick=bgSortClick);
   $('bgCsv').onclick=()=>shareCsv(fname('pozadi_'+(zas.name||'radio')),bgCsv(),'Rádiové pozadí '+zas.name);
   if($('shBg').hidden)openSheet('shBg');
 }
@@ -647,49 +653,50 @@ function drawZas(force){
   if(!force&&b.dataset.ph===ph&&b.dataset.conn===String(connected())){
     if(ph==='bg'||ph==='ship'){const end=ph==='bg'?zas.bgEnd:zas.shEnd,st=ph==='bg'?zas.bgStart:zas.shStart;
       $('zT').textContent=mmss(end-now);$('zM').style.width=Math.min(100,100*(now-st)/(end-st))+'%';$('zC').innerHTML=zasCountHtml(ph,E);
-      if(ph==='ship')$('zL').innerHTML=zasLiveList()}
+      if(ph==='ship'&&$('zRes')){const t=$('zRes'),y=t.scrollTop,x=t.scrollLeft;t.innerHTML=zasTableHtml();t.scrollTop=y;t.scrollLeft=x}
+      if(ph==='bg'&&$('zBgT')){const t=$('zBgT'),y=t.scrollTop,x=t.scrollLeft;t.innerHTML=bgTableHtml();t.scrollTop=y;t.scrollLeft=x}}
     return}
   const head=`<div class="phead"><div><div class="eyebrow">zásilka pro zákazníka</div><h2>${esc(zas.name||'nová zásilka')}</h2></div></div>`;
-  const steps=`<div class="zsteps">${[['1','pozadí',['bg'].includes(ph),['gap','ship','done'].includes(ph)],['2','zásilka',ph==='ship',ph==='done'],['3','výsledek',ph==='done',false]].map(([n,t,act,ok])=>`<span class="${act?'act':ok?'ok':''}"><b>${ok?'✓':n}</b>${t}</span>`).join('')}</div>`;
+  const steps=`<div class="zsteps">${[['1','rádiové pozadí',['bg'].includes(ph),['gap','ship','done'].includes(ph)],['2','snímání zásilky',ph==='ship',ph==='done'],['3','výsledek',ph==='done',false]].map(([n,t,act,ok])=>`<span class="${act?'act':ok?'ok':''}"><b>${ok?'✓':n}</b>${t}</span>`).join('')}</div>`;
   const conn=connected()?'':`<div class="warnbox">Přijímač není připojený. <button class="btn sm primary" id="zConn" style="margin-left:6px">připojit</button></div>`;
   const keep=ph==='setup'&&b.querySelector('#zName')?{n:$('zName').value,e:$('zExp').value,bg:$('zBg').value,sh:$('zSh').value}:null;
   let body='';
   if(ph==='setup'){
-    body=`<div style="font-size:15px">Změří rádiové pozadí místa, pak moduly po přivezení palety. Moduly zásilky = zachycené ve 2. kroku, které nebyly v pozadí. Nejlépe v kovovém kontejneru mimo dosah skladu.</div>
+    body=`<div style="font-size:15px">Nejdřív sejme rádiové pozadí místa, pak moduly po přivezení palety. Moduly zásilky = zachycené ve 2. kroku, které nebyly v rádiovém pozadí. Nejlépe v kovovém kontejneru mimo dosah skladu.</div>
       <div class="fields">
         <label class="field full">zakázka / zákazník<input id="zName" value="${esc(zas.name)}" placeholder="např. SVJ Lipová 12"></label>
         <label class="field">očekávaný počet<input id="zExp" inputmode="numeric" value="${esc(zas.expected)}" placeholder="nepovinné"></label>
-        <label class="field">pozadí (min)<input id="zBg" inputmode="numeric" value="${zas.bgMin}"></label>
+        <label class="field">rádiové pozadí (min)<input id="zBg" inputmode="numeric" value="${zas.bgMin}"></label>
         <label class="field">zásilka (min)<input id="zSh" inputmode="numeric" value="${zas.shMin}"></label>
       </div>${conn}
-      <div class="acts" style="flex-direction:column"><button class="btn primary" id="zGo" style="height:54px">1. spustit načítání pozadí</button>
+      <div class="acts" style="flex-direction:column"><button class="btn primary" id="zGo" style="height:54px">1. spustit snímání rádiového pozadí</button>
       <span style="font-size:13px;color:var(--muted)">Kontejner musí být prázdný, bez palety pro zákazníka. Telefon nechte s rozsvíceným displejem, aplikaci nezavírejte.</span></div>`;
   }else if(ph==='bg'){
-    body=`${conn}<div class="zbig"><b id="zT">${mmss(zas.bgEnd-now)}</b><span>zbývá · pozadí</span></div>
+    body=`${conn}<div class="zbig"><b id="zT">${mmss(zas.bgEnd-now)}</b><span>zbývá · rádiové pozadí<br>hotovo v ${hhmm(zas.bgEnd)}</span></div>
       <div class="zmeter"><i id="zM" style="width:${Math.min(100,100*(now-zas.bgStart)/(zas.bgEnd-zas.bgStart))}%"></i></div>
       <div class="zcount" id="zC">${zasCountHtml('bg',E)}</div>
-      <div class="acts"><button class="btn grow" id="zEnd">ukončit pozadí dříve</button><button class="btn danger" id="zReset">zrušit</button></div>
-      <button class="btn" id="zBgView">zobrazit zachycené pozadí</button>`;
+      <div class="zbtns"><button class="btn" id="zEnd">ukončit snímání rádiového pozadí</button><button class="btn danger" id="zReset">zrušit</button><button class="btn" id="zBgView">zobrazit zachycené rádiové pozadí</button></div>
+      <div class="eyebrow">zachycené moduly</div>
+      <div class="tscroll" id="zBgT" style="max-height:46vh">${bgTableHtml()}</div>`;
   }else if(ph==='gap'){
-    body=`<div class="zbig"><b>✓</b><span>pozadí hotovo · ${pl(Object.keys(zas.bg).length,'modul','moduly','modulů')}</span></div>
+    body=`<div class="zbig"><b>✓</b><span>rádiové pozadí hotovo · ${pl(Object.keys(zas.bg).length,'modul','moduly','modulů')}</span></div>
       <div style="font-size:16px;color:var(--ink)">Přivezte paletu vodoměrů pro zákazníka do kontejneru a spusťte načítání zásilky.</div>${conn}
-      <div class="acts" style="flex-direction:column"><button class="btn primary" id="zGo2" style="height:54px">2. spustit načítání zásilky (${zas.shMin} min)</button><button class="btn" id="zBgView">zobrazit rádiové pozadí (${Object.keys(zas.bg).length})</button><button class="btn" id="zReset">začít znovu</button></div>`;
+      <div class="acts" style="flex-direction:column"><button class="btn primary" id="zGo2" style="height:54px">2. spustit snímání zásilky (${zas.shMin} min)</button><button class="btn" id="zBgView">zobrazit nasnímané rádiové pozadí (${Object.keys(zas.bg).length})</button><button class="btn" id="zReset">začít znovu</button></div>`;
   }else if(ph==='ship'){
-    body=`${conn}<div class="zbig"><b id="zT">${mmss(zas.shEnd-now)}</b><span>zbývá · zásilka</span></div>
+    body=`${conn}<div class="zbig"><b id="zT">${mmss(zas.shEnd-now)}</b><span>zbývá · snímání zásilky<br>hotovo v ${hhmm(zas.shEnd)}</span></div>
       <div class="zmeter"><i id="zM" style="width:${Math.min(100,100*(now-zas.shStart)/(zas.shEnd-zas.shStart))}%"></i></div>
       <div class="zcount" id="zC">${zasCountHtml('ship',E)}</div>
- <div class="acts"><button class="btn grow" id="zEnd">ukončit zásilku dříve</button><button class="btn danger" id="zReset">zrušit</button></div>
-      <button class="btn" id="zBgView">zobrazit rádiové pozadí (${Object.keys(zas.bg).length})</button>
-      <div class="list" id="zL" style="max-height:28vh;overflow:auto">${zasLiveList()}</div>`;
+ <div class="zbtns"><button class="btn" id="zEnd">ukončit snímání zásilky dříve</button><button class="btn danger" id="zReset">zrušit</button><button class="btn" id="zBgView">zobrazit nasnímané rádiové pozadí (${Object.keys(zas.bg).length})</button></div>
+      <div class="eyebrow">nasnímané měřiče</div>
+      <div class="tscroll" id="zRes" style="max-height:46vh">${zasTableHtml()}</div>`;
   }else{
     const rows=zasRows(),n=rows.length,diff=E?n-E:0;
     body=`<div class="zbig"><b>${n}</b><span>${pl(n,'modul','moduly','modulů').replace(/^\d+ /,'')} zásilky${E?` · očekáváno ${E}`:''}</span></div>
-      ${E&&diff!==0?`<div class="${diff<0?'errbox':'warnbox'}">${diff<0?`Chybí ${-diff} – některé moduly nevysílaly nebo byly i v pozadí. Prodlužte načítání nebo zkontrolujte paletu.`:`O ${diff} víc, než se čekalo – v dosahu mohla být i jiná měřidla. Zkontrolujte moduly s jedním telegramem a slabým signálem.`}</div>`:E?'<div class="okbox">Počet souhlasí s objednávkou.</div>':''}
-      <div style="font-size:13px;color:var(--muted)">Pozadí: ${pl(Object.keys(zas.bg).length,'modul','moduly','modulů')} · vyloučeno ${zasExcluded()} · načítání ${dtm(new Date(zas.shStart))}–${new Date(zas.shEnd).toLocaleTimeString('cs-CZ',{hour12:false})}. Řazení: klepněte na záhlaví sloupce.</div>
-      <div class="tscroll"><table class="tbl"><thead><tr>${ZAS_COLS.map(([k,t])=>`<th data-sort="${k}" style="cursor:pointer;user-select:none;${k===zasSort.k?'color:var(--ink)':''}">${t}${k===zasSort.k?(zasSort.dir>0?' ▲':' ▼'):''}</th>`).join('')}</tr></thead><tbody>
-      ${rows.map((m,i)=>`<tr${m.n===1?' style="color:var(--muted)"':''}><td>${i+1}</td><td class="mono" style="color:var(--ink)">${m.id}</td><td>${m.src}</td><td>${esc(manName(m.man)||m.maker||'')}</td><td>${esc(typeName(m.type))}</td><td>${m.ver??'–'}</td><td>${m.n?encName(m.enc):'–'}</td><td>${m.n}</td><td>${m.rl!=null?m.rl+' dBm':'–'}</td><td>${m.rmax!=null?m.rmax+' dBm':'–'}</td><td>${new Date(m.first).toLocaleTimeString('cs-CZ',{hour12:false})}</td><td>${new Date(m.last).toLocaleTimeString('cs-CZ',{hour12:false})}</td><td>${m.ivl!=null?m.ivl+' s':'–'}</td><td>${esc(flagsOf(m.st).join(', '))}</td></tr>`).join('')}</tbody></table></div>
+      ${E&&diff!==0?`<div class="${diff<0?'errbox':'warnbox'}">${diff<0?`Chybí ${-diff} – některé moduly nevysílaly nebo byly i v rádiovém pozadí. Prodlužte načítání nebo zkontrolujte paletu.`:`O ${diff} víc, než se čekalo – v dosahu mohla být i jiná měřidla. Zkontrolujte moduly s jedním telegramem a slabým signálem.`}</div>`:E?'<div class="okbox">Počet souhlasí s objednávkou.</div>':''}
+      <div style="font-size:13px;color:var(--muted)">Rádiové pozadí: ${pl(Object.keys(zas.bg).length,'modul','moduly','modulů')} · vyloučeno ${zasExcluded()} · načítání ${dtm(new Date(zas.shStart))}–${new Date(zas.shEnd).toLocaleTimeString('cs-CZ',{hour12:false})}. Řazení: klepněte na záhlaví sloupce.</div>
+      <div class="tscroll" id="zRes">${zasTableHtml(rows)}</div>
       <div class="acts" style="flex-direction:column"><button class="btn primary" id="zCsv" style="height:54px" ${n?'':'disabled'}>sdílet tabulku (e-mail, Teams…)</button>
-      <button class="btn" id="zBgView">zobrazit rádiové pozadí (${Object.keys(zas.bg).length})</button><button class="btn" id="zMore">načítat zásilku znovu (pozadí zůstane)</button><button class="btn danger" id="zReset">nové načtení</button></div>`;
+      <button class="btn" id="zBgView">zobrazit nasnímané rádiové pozadí (${Object.keys(zas.bg).length})</button><button class="btn" id="zMore">načítat zásilku znovu (rádiové pozadí zůstane)</button><button class="btn danger" id="zReset">nové načtení</button></div>`;
   }
   const sc=b.querySelector('.tscroll'),st=sc?sc.scrollTop:0;
   b.innerHTML=head+steps+body;b.dataset.ph=ph;b.dataset.conn=String(connected());
@@ -701,14 +708,18 @@ function drawZas(force){
     if(zas.bgMin===0){zas.bg={};zas.phase='gap';saveZas(true);drawZas(true);return}zasStart('bg')});
   on('zGo2',()=>zasStart('ship'));
   on('zEnd',()=>{if(zas.phase==='bg')zas.bgEnd=Date.now();else zas.shEnd=Date.now();zasTick()});
-  on('zBgView',openBg);
-  on('zMore',()=>{if(!confirm('Načíst zásilku znovu? Dosavadní výsledek se nahradí, pozadí zůstane.'))return;zasStart('ship')});
+  on('zBgView',openBg);if($('zBgT'))$('zBgT').onclick=bgSortClick;
+  on('zMore',()=>{if(!confirm('Načíst zásilku znovu? Dosavadní výsledek se nahradí, rádiové pozadí zůstane.'))return;zasStart('ship')});
   on('zReset',()=>{if(!confirm('Zrušit načítání a začít znovu? Naměřená data se smažou.'))return;zas=Object.assign({},ZAS0,{name:zas.name,expected:zas.expected,bgMin:zas.bgMin,shMin:zas.shMin,bg:{},sh:{},scan:{}});saveZas(true);drawZas(true)});
   on('zCsv',()=>shareCsv(fname('zasilka_'+(zas.name||'radio')),zasCsv(),'Zásilka '+zas.name));
-  b.querySelectorAll('[data-sort]').forEach(th=>th.onclick=()=>{const k=th.dataset.sort;if(k===zasSort.k)zasSort.dir=-zasSort.dir;else zasSort={k,dir:['id','man','type','enc','st','i'].includes(k)?1:-1};LS('ewrsk_zassort',zasSort);drawZas(true)});
+  if($('zRes'))$('zRes').onclick=zasSortClick;
 }
-function zasCountHtml(ph,E){if(ph==='bg'){const n=Object.keys(zas.bg).length;return `<b>${n}</b> ${pl(n,'modul','moduly','modulů').replace(/^\d+ /,'')} v pozadí (vyloučí se)`}
-  const n=zasResult().length,ns=Object.keys(zas.scan).length;return `<b>${n}</b>${E?` z ${E} očekávaných modulů`:' '+pl(n,'modul','moduly','modulů').replace(/^\d+ /,'')} zásilky · ${zasExcluded()} vyloučeno (pozadí)${ns?' · '+pl(ns,'štítek','štítky','štítků'):''}`+(E&&n>=E?'<div class="okbox" style="margin-top:8px">Nalezen očekávaný počet. Můžete ukončit dříve, nebo nechat doběhnout.</div>':'')}
+function zasTableHtml(rows){rows=rows||zasRows();return `<table class="tbl"><thead><tr>${ZAS_COLS.map(([k,t])=>`<th data-sort="${k}" style="cursor:pointer;user-select:none;${k===zasSort.k?'color:var(--ink)':''}">${t}${k===zasSort.k?(zasSort.dir>0?' ▲':' ▼'):''}</th>`).join('')}</tr></thead><tbody>
+      ${rows.map((m,i)=>`<tr${m.n===1?' style="color:var(--muted)"':''}><td>${i+1}</td><td class="mono" style="color:var(--ink)">${m.id}</td><td>${m.src}</td><td>${esc(manName(m.man)||m.maker||'')}</td><td>${esc(typeName(m.type))}</td><td>${m.ver??'–'}</td><td>${m.n?encName(m.enc):'–'}</td><td>${m.n}</td><td>${m.rl!=null?m.rl+' dBm':'–'}</td><td>${m.rmax!=null?m.rmax+' dBm':'–'}</td><td>${new Date(m.first).toLocaleTimeString('cs-CZ',{hour12:false})}</td><td>${new Date(m.last).toLocaleTimeString('cs-CZ',{hour12:false})}</td><td>${m.ivl!=null?m.ivl+' s':'–'}</td><td>${esc(flagsOf(m.st).join(', '))}</td></tr>`).join('')}</tbody></table>`}
+function zasSortClick(e){const th=e.target.closest('[data-sort]');if(!th)return;const k=th.dataset.sort;if(k===zasSort.k)zasSort.dir=-zasSort.dir;else zasSort={k,dir:['id','man','type','enc','st','i','src'].includes(k)?1:-1};LS('ewrsk_zassort',zasSort);const t=$('zRes');if(t)t.innerHTML=zasTableHtml()}
+const hhmm=t=>new Date(t).toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'});
+function zasCountHtml(ph,E){if(ph==='bg'){const n=Object.keys(zas.bg).length;return `<b>${n}</b> ${pl(n,'modul','moduly','modulů').replace(/^\d+ /,'')} v rádiovém pozadí (vyloučí se)`}
+  const n=zasResult().length,ns=Object.keys(zas.scan).length;return `<b>${n}</b>${E?` z ${E} očekávaných modulů`:' '+pl(n,'modul','moduly','modulů').replace(/^\d+ /,'')} zásilky · ${zasExcluded()} vyloučeno (rádiové pozadí)${ns?' · '+pl(ns,'štítek','štítky','štítků'):''}`+(E&&n>=E?'<div class="okbox" style="margin-top:8px">Nalezen očekávaný počet. Můžete ukončit dříve, nebo nechat doběhnout.</div>':'')}
 function zasLiveList(){return zasResult().sort((a,b)=>b.last-a.last).slice(0,40).map(m=>`<div class="li" style="font-size:14px"><span class="mono" style="color:var(--ink)">${m.id}</span><span style="flex:1;color:var(--muted)">${esc(manName(m.man)||m.maker||'')}${m.type!=null?' · '+esc(typeName(m.type)):''}</span><span>${m.rl!=null?m.rl+' dBm':m.src}</span></div>`).join('')}
 
 
