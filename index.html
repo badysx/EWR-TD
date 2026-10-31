@@ -183,6 +183,8 @@ main .wrap{padding:8px 16px 150px}
 .zcount{font-size:16px;color:var(--body)}.zcount b{font-size:22px;color:var(--ink)}
 .okbox{background:#e8f6ee;border:1px solid #b9e3c9;color:#145c35;padding:10px 12px;font-size:15px}
 .zmain{display:grid;gap:12px;padding-top:14px!important}
+.rolecard{display:grid;gap:6px;text-align:left;padding:16px;background:#fff;border:1.5px solid var(--b2);border-radius:10px;font-size:15px;color:var(--body);cursor:pointer}
+.rolecard b{font-size:19px;color:var(--ink)}.rolecard:active{border-color:var(--red);background:var(--red-t)}
 .zmain .tscroll{max-height:none}
 </style>
 </head>
@@ -226,7 +228,13 @@ main .wrap{padding:8px 16px 150px}
   </div>
 </div></div>
 
+<div class="sheet" id="shConn" hidden><div class="panel">
+  <div class="phead"><div><div class="eyebrow">připojit přijímač</div><h2>čím chcete přijímat?</h2></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
+  <button class="rolecard" id="cBle"><b>EWR-TD přes Bluetooth</b><span>Přijímač ENBRA s baterií. Ukáže stav baterie a umí přepínat režim příjmu.</span></button>
+  <button class="rolecard" id="cUsb"><b>USB dongle</b><span>Radiocrafts RC1180-MBUS (FTDI) zapojený do USB. Telefon přes kabel nebo redukci USB-C OTG, počítač přímo. Režim příjmu (S/T/C) je ten, který je uložený v modulu.</span></button>
+</div></div>
 <div class="sheet" id="shMenu" hidden><div class="panel menu" id="menuBody"></div></div>
+<div class="sheet" id="shBg" hidden><div class="panel" id="bgBody"></div></div>
 <div class="sheet" id="shHelp" hidden><div class="panel">
   <div class="phead"><div><div class="eyebrow">nápověda</div><h2>jak načíst zásilku</h2></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
   <div class="list" style="font-size:15px">
@@ -236,6 +244,7 @@ main .wrap{padding:8px 16px 150px}
     <div class="li"><span><b>Štítky.</b> Kód, který jde přečíst (QR, čárový, DataMatrix), naskenujte tlačítkem dole. Doplní se do výsledku, i když modul nevysílá.</span></div>
     <div class="li"><span><b>Nesedí počet.</b> Méně: prodlužte načítání (načítat znovu). Víc: zkontrolujte šedé řádky s jedním telegramem a slabým signálem.</span></div>
     <div class="li"><span><b>Telefon.</b> Nechte aplikaci otevřenou s rozsvíceným displejem. Prohlížeč: Chrome na Androidu a počítači, Edge na počítači, na iPhonu Bluefy.</span></div>
+    <div class="li"><span><b>USB dongle.</b> Radiocrafts RC1180-MBUS s převodníkem FTDI. V telefonu přes USB-C OTG redukci (Chrome povolí přístup k zařízení), v počítači přímo (Chrome nebo Edge). Výchozí rychlost 19200 Bd. Pokud má modul zapnutý RSSI_MODE, zaškrtněte v menu „dongle posílá RSSI“, jinak se signál neukazuje.</span></div>
     <div class="li"><span><b>EWR-TD se nepřipojí.</b> Ukončete aplikaci EWM, v nastavení Bluetooth u EWR-TD zvolte Zapomenout, vypněte a zapněte Bluetooth. EWR-TD nesmí být připojené k jinému telefonu.</span></div>
   </div>
 </div></div>
@@ -259,7 +268,7 @@ const MEDIUM={0x02:'elektřina',0x03:'plyn',0x04:'teplo',0x06:'TUV',0x07:'voda',
 const MAN={APA:'Apator',KAM:'Kamstrup',DME:'Diehl',HYD:'Diehl',QDS:'Qundis',SON:'Sontex',LSE:'Siemens',ITW:'Itron',SEN:'Sensus',BMT:'B METERS',ZRI:'Zenner',ZRM:'Zenner',EFE:'Engelmann',TCH:'Techem',IST:'ista',LUG:'Landis+Gyr',ELS:'Elster',MAD:'Maddalena',AMT:'Aquametro',WEH:'Wehrle'};
 const typeName=t=>t==null?'':(MEDIUM[t]||'typ 0x'+h2(t));
 const manName=m=>m?(MAN[m]||m):'';
-const APP_VER=6;
+const APP_VER=8;
 const WAIT_MIN=10;   // po kolika minutách bez vysílání je měřidlo „problém“
 
 
@@ -273,22 +282,25 @@ let idRules=LS('ewrsk_idrule')||{};
 let mSaveT=null;const saveMeters=()=>{if(!mSaveT)mSaveT=setTimeout(()=>{mSaveT=null;LS('ewrsk_meters',{meters:[...meters.values()].slice(-3000)})},5000)};
 
 // ================= příjem telegramu =================
-function onFrame(u){
-  if(u.length<3)return;
-  const o=decode(u.slice(0,u.length-1));o.rssi=-u[u.length-1];
+function onFrame(u){if(u.length<3)return;handleTelegram(u.slice(0,u.length-1),-u[u.length-1])}
+function handleTelegram(fr,rssi){
+  if(devState&&devState.dongle&&!devState.rx)return null;
+  const o=decode(fr);o.rssi=rssi;
+  if(!o.bad&&!/^[A-Z]{3}$/.test(o.man))o.bad=true;
   raw.push(o);if(raw.length>5000)raw.shift();blink();
-  if(o.bad)return;
+  if(o.bad)return o;
   const k=o.man+'-'+o.id;let m=meters.get(k);
   if(!m){m={k,id:o.id,man:o.man,first:o.t,count:0};meters.set(k,m)}
   Object.assign(m,{type:o.type,ver:o.ver,status:o.status,rssi:o.rssi,last:o.t,enc:o.enc});m.count++;
   zasFrame(o);
   // štítek s dlouhým kódem: ID určí vysílání
   for(const s of Object.values(zas.scan))if(!s.id&&s.cands&&s.cands.includes(o.id)){s.id=o.id;s.cands=null;learnRule(s.raw,o.id);saveZas()}
-  saveMeters();
+  saveMeters();return o;
 }
 function setTop(kind,txt){
   const d=$('tDot'),info=$('tInfo'),rx=$('tRx'),bat=$('tBat');
   if(connected()&&devState&&devState.bat!=null){const v=Math.max(0,Math.min(100,devState.bat));bat.hidden=false;bat.className='bat'+(v<15?' low blink':v<35?' low':v<60?' mid':'');const seg=v>=85?5:v>=60?4:v>=35?3:v>=20?2:v>=15?1:0;bat.querySelectorAll('i').forEach((e,k)=>e.classList.toggle('on',k<seg));bat.title='baterie EWR-TD '+v+' %';bat.setAttribute('aria-label','baterie EWR-TD '+v+' %')}else bat.hidden=true;
+  $('tLabel').textContent=dgOn()?'USB dongle':'EWR-TD';
   if(kind){d.className='dot'+(kind==='err'?' err':'');info.textContent=txt;rx.hidden=true;return}
   if(connected()&&devState){d.className='dot'+(devState.rx?' on':'');info.textContent=isDemo?'demo':'';rx.textContent=devState.rx?'přijímá':'příjem vypnut';rx.hidden=false}
   else{d.className='dot';info.textContent='nepřipojeno';rx.hidden=true}
@@ -344,29 +356,41 @@ $('bScan').onclick=()=>openScanner('inv');
 // ================= menu =================
 function renderMenu(){
   const s=devState,est=batEstimate(),c=connected(),tot=s?s.ok+s.crc:0;
-  $('menuBody').innerHTML=`<div class="phead"><div><div class="eyebrow">${c?esc(isDemo?'EWR-TD (demo)':dev&&dev.name||'EWR-TD'):'EWR-TD nepřipojeno'}</div></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
-    ${c&&s?`<div class="cards3">
+  const usb=dgOn();
+  $('menuBody').innerHTML=`<div class="phead"><div><div class="eyebrow">${c?esc(isDemo?'EWR-TD (demo)':usb?dg.name:dev&&dev.name||'EWR-TD'):'přijímač nepřipojen'}</div></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
+    ${usb?`<div class="cards3">
+      <div class="mcard"><div class="k">rychlost</div><div class="v">${settings.baud||19200}</div><div class="s">Bd, 8N1</div></div>
+      <div class="mcard"><div class="k">telegramy</div><div class="v">${s.ok}</div><div class="s">${s.crc?s.crc+' nečitelných':'vše čitelné'}</div></div>
+      <div class="mcard"><div class="k">RSSI</div><div class="v">${settings.dgRssi?'ano':'ne'}</div><div class="s">bajt navíc</div></div></div>
+      <div class="acts"><button class="btn grow" id="mRxDg">${s.rx?'pozastavit příjem':'obnovit příjem'}</button></div>`
+    :c&&s?`<div class="cards3">
       <div class="mcard"><div class="k">baterie</div><div class="v" style="color:${s.bat>50?'var(--ink)':s.bat>=20?'#8a5a00':'var(--bad)'}">${s.bat} %</div><div class="s">${est?'vydrží ≈ '+(est.left<1?Math.round(est.left*60)+' min':est.left.toFixed(1)+' h'):'odhad po 10 min'}</div></div>
       <div class="mcard"><div class="k">příjem</div><div class="v">${MODES[s.mode]||'–'}</div><div class="s">${s.rx?'zapnut':'vypnut'}</div></div>
       <div class="mcard"><div class="k">chybné</div><div class="v">${tot?(100*s.crc/tot).toFixed(0):0} %</div><div class="s">FW ${s.fw??'–'} · HW ${s.hw??'–'}</div></div></div>
       <div class="acts"><label class="field" style="flex:1">režim příjmu<select id="mMode">${Object.entries(MODES).map(([k,v])=>`<option value="${k}" ${+k===settings.mode?'selected':''}>${v}</option>`).join('')}</select></label>
         <button class="btn" id="mRx" style="align-self:end;height:46px">${s.rx?'zastavit příjem':'spustit příjem'}</button></div>`
-      :`<button class="btn primary" id="mConn" style="height:50px">připojit EWR-TD</button>`}
+      :`<button class="btn primary" id="mConn" style="height:50px">připojit přijímač</button>`}
+    <div class="eyebrow" style="margin-top:6px">USB dongle</div>
+    <div class="acts"><label class="field" style="flex:1">rychlost (Bd)<select id="mBaud" ${usb?'disabled':''}>${[9600,19200,38400,57600,115200].map(b=>`<option ${b===(settings.baud||19200)?'selected':''}>${b}</option>`).join('')}</select></label>
+      <label class="mi" style="flex:1;display:flex;align-items:center;gap:8px;min-height:46px;align-self:end;border:0"><input type="checkbox" id="mDgRssi" ${settings.dgRssi?'checked':''} style="width:22px;height:22px">dongle posílá RSSI</label></div>
     <button class="mi" id="mHelp">nápověda</button>
     <button class="mi" id="mDemo">${isDemo?'ukončit demo':'demo bez EWR-TD (na zkoušku)'}</button>
-    ${c&&!isDemo?'<button class="mi" id="mDisc">odpojit EWR-TD (příjem se vypne)</button>':''}
+    ${c&&!isDemo?`<button class="mi" id="mDisc">${usb?'odpojit USB dongle':'odpojit EWR-TD (příjem se vypne)'}</button>`:''}
     <div style="font-size:13px;color:var(--muted);padding-top:6px">Verze aplikace ${APP_VER}. Soukromí: všechna data jsou uložená jen v tomto zařízení. Aplikace nic neodesílá na internet – ven jdou jen data, která sami sdílíte (tabulka).</div>`;
   const on=(id,f)=>{const e=$(id);if(e)e.onclick=f};
   on('mConn',()=>{closeSheets();connect()});
   on('mRx',()=>setRx(!(devState&&devState.rx)).then(renderMenu));
   const mm=$('mMode');if(mm)mm.onchange=e=>{settings.mode=+e.target.value;LS('ewrsk_settings',settings);if(devState&&devState.rx)setRx(true)};
   on('mHelp',()=>openSheet('shHelp'));
+  on('mRxDg',()=>{setRx(!devState.rx);renderMenu()});
+  const mb=$('mBaud');if(mb)mb.onchange=e=>{settings.baud=+e.target.value;LS('ewrsk_settings',settings)};
+  const mr=$('mDgRssi');if(mr)mr.onchange=e=>{settings.dgRssi=e.target.checked;LS('ewrsk_settings',settings);dgBuf=[]};
   on('mDemo',()=>{closeSheets();isDemo?stopDemo():startDemo()});
   on('mDisc',()=>{closeSheets();disconnect()});
 }
 $('bMenu').onclick=()=>{renderMenu();openSheet('shMenu')};
-$('bConnect').onclick=connect;
-$('bDisconnect').onclick=()=>{const wasDemo=isDemo;disconnect();toast(wasDemo?'Demo ukončeno.':'EWR-TD odpojeno, příjem vypnut. Zařízení vypněte tlačítkem, jinak se samo vypne do 30 min.')};
+$('bConnect').onclick=connect;$('cBle').onclick=()=>{closeSheets();connectBle()};$('cUsb').onclick=connectDongle;
+$('bDisconnect').onclick=()=>{const wasDemo=isDemo,wasDg=dgOn();disconnect();if(!wasDg)toast(wasDemo?'Demo ukončeno.':'EWR-TD odpojeno, příjem vypnut. Zařízení vypněte tlačítkem, jinak se samo vypne do 30 min.')};
 
 // ================= telegramy =================
 function manuf(b0,b1){const m=b0|((b1&0x7F)<<8);return [10,5,0].map(s=>String.fromCharCode(((m>>s)&31)+64)).join('')}
@@ -384,7 +408,8 @@ function fillFromMeter(r){if(!r.id)return;const m=meterById(r.id);if(!m)return;O
 // ================= Bluetooth (EWR-TD) =================
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const lim=(p,ms,w)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('vypršel čas – '+w)),ms))]);
-async function connect(){
+function connect(){if(isDemo||connected())return;openSheet('shConn')}
+async function connectBle(){
   if(isDemo)return;
   if(!navigator.bluetooth){showConnErr(!window.isSecureContext?'Aplikace musí běžet z adresy https://.':'Tento prohlížeč neumí Bluetooth. Použijte Chrome (Android, PC), Edge (PC) nebo Bluefy (iPhone).');return}
   try{
@@ -416,10 +441,12 @@ function onDisconnected(){clearInterval(statTimer);chStat=chCmd=null;const wasRx
   manualDisc=false;dirty=true}
 async function disconnect(){
   if(isDemo){stopDemo();return}
+  if(dgOn()){await dgClose(true);return}
   manualDisc=true;try{if(devState&&devState.rx)await setRx(false)}catch(e){}
   clearInterval(statTimer);try{dev&&dev.gatt.disconnect()}catch(e){}devState=null;dirty=true;
 }
 async function setRx(on){
+  if(dgOn()){devState.rx=on;rxSince=on?new Date():null;return}
   const b=on?(settings.mode|0x80):settings.mode;
   if(isDemo){demo.mode=settings.mode;demo.rx=on}else if(chCmd)await chCmd.writeValue(new Uint8Array([0xE0,b]));
   await sleep(700);await readStatus();
@@ -435,7 +462,7 @@ async function readStatus(){
   dirty=true;
 }
 function batEstimate(){if(batHist.length<2)return null;const a=batHist[0],b=batHist[batHist.length-1],h=(b.t-a.t)/3.6e6;if(h<0.15||a.bat<=b.bat)return null;const r=(a.bat-b.bat)/h;return{rate:r,left:b.bat/r}}
-const connected=()=>isDemo||!!(dev&&dev.gatt&&dev.gatt.connected&&chCmd);
+const connected=()=>isDemo||dgOn()||!!(dev&&dev.gatt&&dev.gatt.connected&&chCmd);
 // ================= ID ze štítku =================
 function digitsOf(raw){const m=String(raw).match(/\d+/g);return m?m.sort((a,b)=>b.length-a.length)[0]:''}
 function idCandidates(raw){const d=digitsOf(raw);if(!d)return[];if(d.length<=8)return[d.padStart(8,'0')];const c=[];for(let i=0;i+8<=d.length;i++)c.push(d.substr(i,8));return[...new Set(c)]}
@@ -546,9 +573,9 @@ function zasFrame(o){
   const ph=zas.phase;if(ph!=='bg'&&ph!=='ship')return;
   const now=+o.t;if(ph==='bg'&&(now<zas.bgStart||now>zas.bgEnd))return;if(ph==='ship'&&(now<zas.shStart||now>zas.shEnd))return;
   const map=ph==='bg'?zas.bg:zas.sh,k=o.man+'-'+o.id;let m=map[k];
-  if(!m){m=map[k]={id:o.id,man:o.man,type:o.type,ver:o.ver,enc:o.enc,first:now,last:now,n:0,rl:o.rssi,rmax:o.rssi,rsum:0,st:o.status,acc:o.acc};
+  if(!m){m=map[k]={id:o.id,man:o.man,type:o.type,ver:o.ver,enc:o.enc,first:now,last:now,n:0,rl:o.rssi,rmax:o.rssi,rsum:0,rc:0,st:o.status,acc:o.acc};
     if(ph==='ship'&&!zas.bg[k]){beep(0);vib(40)}}
-  m.n++;m.last=now;m.rl=o.rssi;m.rsum+=o.rssi;if(o.rssi>m.rmax)m.rmax=o.rssi;if(o.status!=null)m.st=o.status;if(o.enc!=null)m.enc=o.enc;m.type=o.type;m.ver=o.ver;
+  m.n++;m.last=now;if(o.rssi!=null){m.rl=o.rssi;m.rsum+=o.rssi;m.rc=(m.rc||0)+1;if(m.rmax==null||o.rssi>m.rmax)m.rmax=o.rssi}if(o.status!=null)m.st=o.status;if(o.enc!=null)m.enc=o.enc;m.type=o.type;m.ver=o.ver;
   saveZas();
 }
 // výsledek = moduly zachycené při zásilce, které nebyly v pozadí, + naskenované štítky
@@ -565,6 +592,7 @@ function zasTick(){
   if(zas.phase==='bg'&&now>=zas.bgEnd){zas.phase='gap';saveZas(true);beep(1);vib([200,100,200]);toast('Pozadí načteno. Přivezte paletu a spusťte načítání zásilky.',{ms:9000})}
   if(zas.phase==='ship'&&now>=zas.shEnd){zas.phase='done';saveZas(true);beep(1);vib([200,100,200]);toast(`Zásilka načtena: ${pl(zasResult().length,'modul','moduly','modulů')}.`,{ms:9000});zasSort={k:'last',dir:-1}}
   drawZas();
+  if(!$('shBg').hidden&&zas.phase==='bg')openBg();
 }
 setInterval(zasTick,1000);
 const ZAS_COLS=[['i','#'],['id','rádiové ID'],['src','zdroj'],['man','výrobce'],['type','typ'],['ver','verze'],['enc','šifrování'],['n','telegramů'],['rl','signál'],['rmax','max'],['first','první'],['last','poslední'],['ivl','interval'],['st','hlášení']];
@@ -574,13 +602,39 @@ function zasRows(){
   rows.sort((a,b)=>{const x=val(a,zasSort.k),y=val(b,zasSort.k);return ((x??-1e15)>(y??-1e15)?1:(x??-1e15)<(y??-1e15)?-1:0)*zasSort.dir||(b.last-a.last)});
   return rows;
 }
+// ---- zachycené rádiové pozadí ----
+let bgSort=LS('ewrsk_bgsort')||{k:'last',dir:-1};
+const BG_COLS=[['i','#'],['id','rádiové ID'],['man','výrobce'],['type','typ'],['ver','verze'],['enc','šifrování'],['n','telegramů'],['rl','signál'],['rmax','max'],['first','první'],['last','poslední'],['ivl','interval'],['inz','i v zásilce']];
+function bgRows(){
+  const rows=Object.entries(zas.bg).map(([k,m])=>Object.assign({k,inz:zas.sh[k]?1:0,ivl:m.n>1?Math.round((m.last-m.first)/(m.n-1)/1000):null},m));
+  const val=(m,k)=>k==='man'?manName(m.man):k==='type'?typeName(m.type):k==='i'?m.first:m[k];
+  rows.sort((a,b)=>{const x=val(a,bgSort.k),y=val(b,bgSort.k);return ((x??-1e15)>(y??-1e15)?1:(x??-1e15)<(y??-1e15)?-1:0)*bgSort.dir||(b.last-a.last)});
+  return rows;
+}
+function bgCsv(){const cl=v=>String(v??'').replace(/[;\r\n]/g,',');
+  return '\ufeff'+['zakazka;poradi;radiove_id;vyrobce;kod_vyrobce;typ;verze;sifrovani;pocet_telegramu;signal_posledni_dbm;signal_max_dbm;prvni_prijem;posledni_prijem;interval_s;i_v_zasilce',
+    ...bgRows().map((m,i)=>[zas.name,i+1,m.id,manName(m.man),m.man,typeName(m.type),m.ver,encName(m.enc),m.n,m.rl,m.rmax,dtm(new Date(m.first)),dtm(new Date(m.last)),m.ivl??'',m.inz?'ano – vyloučeno':''].map(cl).join(';'))].join('\r\n')}
+function openBg(){
+  const b=$('bgBody'),rows=bgRows(),n=rows.length,running=zas.phase==='bg';
+  const sc=b.querySelector('.tscroll'),st=sc?sc.scrollTop:0;
+  b.innerHTML=`<div class="phead"><div><div class="eyebrow">rádiové pozadí${running?' · načítá se':''}</div><h2>${pl(n,'modul','moduly','modulů')}</h2></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
+    <div style="font-size:14px;color:var(--muted)">${zas.bgStart?`Načteno ${dtm(new Date(zas.bgStart))}–${new Date(Math.min(Date.now(),zas.bgEnd)).toLocaleTimeString('cs-CZ',{hour12:false})}. `:''}Tyto moduly se z výsledku zásilky vylučují.${zasExcluded()?` Při načítání zásilky se znovu ozvalo ${zasExcluded()}.`:''} Řazení: klepněte na záhlaví sloupce.</div>
+    ${n?`<div class="tscroll"><table class="tbl"><thead><tr>${BG_COLS.map(([k,t])=>`<th data-sort="${k}" style="cursor:pointer;user-select:none;${k===bgSort.k?'color:var(--ink)':''}">${t}${k===bgSort.k?(bgSort.dir>0?' ▲':' ▼'):''}</th>`).join('')}</tr></thead><tbody>
+    ${rows.map((m,i)=>`<tr><td>${i+1}</td><td class="mono" style="color:var(--ink)">${m.id}</td><td>${esc(manName(m.man))}</td><td>${esc(typeName(m.type))}</td><td>${m.ver}</td><td>${encName(m.enc)}</td><td>${m.n}</td><td>${m.rl!=null?m.rl+' dBm':'–'}</td><td>${m.rmax!=null?m.rmax+' dBm':'–'}</td><td>${new Date(m.first).toLocaleTimeString('cs-CZ',{hour12:false})}</td><td>${new Date(m.last).toLocaleTimeString('cs-CZ',{hour12:false})}</td><td>${m.ivl!=null?m.ivl+' s':'–'}</td><td>${m.inz?'ano – vyloučeno':''}</td></tr>`).join('')}</tbody></table></div>`
+      :`<div style="color:var(--muted)">${running?'Zatím nic nezachyceno.':'V pozadí nebyl zachycen žádný modul.'}</div>`}
+    <div class="acts"><button class="btn grow" id="bgCsv" ${n?'':'disabled'}>sdílet tabulku pozadí</button><button class="btn" data-close>zavřít</button></div>`;
+  const sc2=b.querySelector('.tscroll');if(sc2)sc2.scrollTop=st;
+  b.querySelectorAll('[data-sort]').forEach(th=>th.onclick=()=>{const k=th.dataset.sort;if(k===bgSort.k)bgSort.dir=-bgSort.dir;else bgSort={k,dir:['id','man','type','enc','i'].includes(k)?1:-1};LS('ewrsk_bgsort',bgSort);openBg()});
+  $('bgCsv').onclick=()=>shareCsv(fname('pozadi_'+(zas.name||'radio')),bgCsv(),'Rádiové pozadí '+zas.name);
+  if($('shBg').hidden)openSheet('shBg');
+}
 function zasCsv(){
   const cl=v=>String(v??'').replace(/[;\r\n]/g,',');
-  const rows=zasRows().map((m,i)=>[zas.name,i+1,m.id,m.src,m.raw||'',manName(m.man)||m.maker||'',m.man,typeName(m.type),m.ver??'',m.n?encName(m.enc):'',m.n,m.rl??'',m.rmax??'',m.n?Math.round(m.rsum/m.n):'',m.n?dtm(new Date(m.first)):'',m.n?dtm(new Date(m.last)):'',m.ivl??'',flagsOf(m.st).join(', ')].map(cl).join(';'));
+  const rows=zasRows().map((m,i)=>[zas.name,i+1,m.id,m.src,m.raw||'',manName(m.man)||m.maker||'',m.man,typeName(m.type),m.ver??'',m.n?encName(m.enc):'',m.n,m.rl??'',m.rmax??'',(m.rc||m.n)&&m.rl!=null?Math.round(m.rsum/(m.rc||m.n)):'',m.n?dtm(new Date(m.first)):'',m.n?dtm(new Date(m.last)):'',m.ivl??'',flagsOf(m.st).join(', ')].map(cl).join(';'));
   return '﻿'+['zakazka;poradi;radiove_id;zdroj;kod_ze_stitku;vyrobce;kod_vyrobce;typ;verze;sifrovani;pocet_telegramu;signal_posledni_dbm;signal_max_dbm;signal_prumer_dbm;prvni_prijem;posledni_prijem;interval_s;hlaseni',...rows].join('\r\n');
 }
 function zasStart(phase){
-  if(!connected()){toast('Nejdřív připojte EWR-TD.',{err:true});connect();return}
+  if(!connected()){toast('Nejdřív připojte přijímač (EWR-TD nebo USB dongle).',{err:true});connect();return}
   if(devState&&!devState.rx)setRx(true);
   const now=Date.now();
   if(phase==='bg'){zas.bg={};zas.sh={};zas.bgStart=now;zas.bgEnd=now+zas.bgMin*60000;zas.phase='bg'}
@@ -597,7 +651,7 @@ function drawZas(force){
     return}
   const head=`<div class="phead"><div><div class="eyebrow">zásilka pro zákazníka</div><h2>${esc(zas.name||'nová zásilka')}</h2></div></div>`;
   const steps=`<div class="zsteps">${[['1','pozadí',['bg'].includes(ph),['gap','ship','done'].includes(ph)],['2','zásilka',ph==='ship',ph==='done'],['3','výsledek',ph==='done',false]].map(([n,t,act,ok])=>`<span class="${act?'act':ok?'ok':''}"><b>${ok?'✓':n}</b>${t}</span>`).join('')}</div>`;
-  const conn=connected()?'':`<div class="warnbox">EWR-TD není připojené. <button class="btn sm primary" id="zConn" style="margin-left:6px">připojit</button></div>`;
+  const conn=connected()?'':`<div class="warnbox">Přijímač není připojený. <button class="btn sm primary" id="zConn" style="margin-left:6px">připojit</button></div>`;
   const keep=ph==='setup'&&b.querySelector('#zName')?{n:$('zName').value,e:$('zExp').value,bg:$('zBg').value,sh:$('zSh').value}:null;
   let body='';
   if(ph==='setup'){
@@ -614,16 +668,18 @@ function drawZas(force){
     body=`${conn}<div class="zbig"><b id="zT">${mmss(zas.bgEnd-now)}</b><span>zbývá · pozadí</span></div>
       <div class="zmeter"><i id="zM" style="width:${Math.min(100,100*(now-zas.bgStart)/(zas.bgEnd-zas.bgStart))}%"></i></div>
       <div class="zcount" id="zC">${zasCountHtml('bg',E)}</div>
-      <div class="acts"><button class="btn grow" id="zEnd">ukončit pozadí dříve</button><button class="btn danger" id="zReset">zrušit</button></div>`;
+      <div class="acts"><button class="btn grow" id="zEnd">ukončit pozadí dříve</button><button class="btn danger" id="zReset">zrušit</button></div>
+      <button class="btn" id="zBgView">zobrazit zachycené pozadí</button>`;
   }else if(ph==='gap'){
     body=`<div class="zbig"><b>✓</b><span>pozadí hotovo · ${pl(Object.keys(zas.bg).length,'modul','moduly','modulů')}</span></div>
       <div style="font-size:16px;color:var(--ink)">Přivezte paletu vodoměrů pro zákazníka do kontejneru a spusťte načítání zásilky.</div>${conn}
-      <div class="acts" style="flex-direction:column"><button class="btn primary" id="zGo2" style="height:54px">2. spustit načítání zásilky (${zas.shMin} min)</button><button class="btn" id="zReset">začít znovu</button></div>`;
+      <div class="acts" style="flex-direction:column"><button class="btn primary" id="zGo2" style="height:54px">2. spustit načítání zásilky (${zas.shMin} min)</button><button class="btn" id="zBgView">zobrazit rádiové pozadí (${Object.keys(zas.bg).length})</button><button class="btn" id="zReset">začít znovu</button></div>`;
   }else if(ph==='ship'){
     body=`${conn}<div class="zbig"><b id="zT">${mmss(zas.shEnd-now)}</b><span>zbývá · zásilka</span></div>
       <div class="zmeter"><i id="zM" style="width:${Math.min(100,100*(now-zas.shStart)/(zas.shEnd-zas.shStart))}%"></i></div>
       <div class="zcount" id="zC">${zasCountHtml('ship',E)}</div>
-      <div class="acts"><button class="btn grow" id="zEnd">ukončit zásilku dříve</button><button class="btn danger" id="zReset">zrušit</button></div>
+ <div class="acts"><button class="btn grow" id="zEnd">ukončit zásilku dříve</button><button class="btn danger" id="zReset">zrušit</button></div>
+      <button class="btn" id="zBgView">zobrazit rádiové pozadí (${Object.keys(zas.bg).length})</button>
       <div class="list" id="zL" style="max-height:28vh;overflow:auto">${zasLiveList()}</div>`;
   }else{
     const rows=zasRows(),n=rows.length,diff=E?n-E:0;
@@ -633,7 +689,7 @@ function drawZas(force){
       <div class="tscroll"><table class="tbl"><thead><tr>${ZAS_COLS.map(([k,t])=>`<th data-sort="${k}" style="cursor:pointer;user-select:none;${k===zasSort.k?'color:var(--ink)':''}">${t}${k===zasSort.k?(zasSort.dir>0?' ▲':' ▼'):''}</th>`).join('')}</tr></thead><tbody>
       ${rows.map((m,i)=>`<tr${m.n===1?' style="color:var(--muted)"':''}><td>${i+1}</td><td class="mono" style="color:var(--ink)">${m.id}</td><td>${m.src}</td><td>${esc(manName(m.man)||m.maker||'')}</td><td>${esc(typeName(m.type))}</td><td>${m.ver??'–'}</td><td>${m.n?encName(m.enc):'–'}</td><td>${m.n}</td><td>${m.rl!=null?m.rl+' dBm':'–'}</td><td>${m.rmax!=null?m.rmax+' dBm':'–'}</td><td>${new Date(m.first).toLocaleTimeString('cs-CZ',{hour12:false})}</td><td>${new Date(m.last).toLocaleTimeString('cs-CZ',{hour12:false})}</td><td>${m.ivl!=null?m.ivl+' s':'–'}</td><td>${esc(flagsOf(m.st).join(', '))}</td></tr>`).join('')}</tbody></table></div>
       <div class="acts" style="flex-direction:column"><button class="btn primary" id="zCsv" style="height:54px" ${n?'':'disabled'}>sdílet tabulku (e-mail, Teams…)</button>
-      <button class="btn" id="zMore">načítat zásilku znovu (pozadí zůstane)</button><button class="btn danger" id="zReset">nové načtení</button></div>`;
+      <button class="btn" id="zBgView">zobrazit rádiové pozadí (${Object.keys(zas.bg).length})</button><button class="btn" id="zMore">načítat zásilku znovu (pozadí zůstane)</button><button class="btn danger" id="zReset">nové načtení</button></div>`;
   }
   const sc=b.querySelector('.tscroll'),st=sc?sc.scrollTop:0;
   b.innerHTML=head+steps+body;b.dataset.ph=ph;b.dataset.conn=String(connected());
@@ -645,6 +701,7 @@ function drawZas(force){
     if(zas.bgMin===0){zas.bg={};zas.phase='gap';saveZas(true);drawZas(true);return}zasStart('bg')});
   on('zGo2',()=>zasStart('ship'));
   on('zEnd',()=>{if(zas.phase==='bg')zas.bgEnd=Date.now();else zas.shEnd=Date.now();zasTick()});
+  on('zBgView',openBg);
   on('zMore',()=>{if(!confirm('Načíst zásilku znovu? Dosavadní výsledek se nahradí, pozadí zůstane.'))return;zasStart('ship')});
   on('zReset',()=>{if(!confirm('Zrušit načítání a začít znovu? Naměřená data se smažou.'))return;zas=Object.assign({},ZAS0,{name:zas.name,expected:zas.expected,bgMin:zas.bgMin,shMin:zas.shMin,bg:{},sh:{},scan:{}});saveZas(true);drawZas(true)});
   on('zCsv',()=>shareCsv(fname('zasilka_'+(zas.name||'radio')),zasCsv(),'Zásilka '+zas.name));
@@ -654,6 +711,63 @@ function zasCountHtml(ph,E){if(ph==='bg'){const n=Object.keys(zas.bg).length;ret
   const n=zasResult().length,ns=Object.keys(zas.scan).length;return `<b>${n}</b>${E?` z ${E} očekávaných modulů`:' '+pl(n,'modul','moduly','modulů').replace(/^\d+ /,'')} zásilky · ${zasExcluded()} vyloučeno (pozadí)${ns?' · '+pl(ns,'štítek','štítky','štítků'):''}`+(E&&n>=E?'<div class="okbox" style="margin-top:8px">Nalezen očekávaný počet. Můžete ukončit dříve, nebo nechat doběhnout.</div>':'')}
 function zasLiveList(){return zasResult().sort((a,b)=>b.last-a.last).slice(0,40).map(m=>`<div class="li" style="font-size:14px"><span class="mono" style="color:var(--ink)">${m.id}</span><span style="flex:1;color:var(--muted)">${esc(manName(m.man)||m.maker||'')}${m.type!=null?' · '+esc(typeName(m.type)):''}</span><span>${m.rl!=null?m.rl+' dBm':m.src}</span></div>`).join('')}
 
+
+// ================= USB dongle (Radiocrafts RC1180-MBUS přes FTDI) =================
+// Počítač: Web Serial (ovladač v systému). Android: WebUSB s vlastním ovladačem FTDI.
+// Formát z modulu: [L][L bajtů telegramu bez CRC] a volitelně 1 bajt RSSI (RSSI_MODE), dBm = −RSSI/2.
+let dg=null,dgBuf=[],dgLast=0;
+const dgOn=()=>!!(dg&&dg.open);
+const isAndroid=/Android/i.test(navigator.userAgent);
+function ftdiDiv(baud){const d8=Math.round(3000000*8/baud);let n=d8>>3;const f=[0,3,2,4,1,5,6,7][d8&7];if(n===1&&!f)n=0;const e=n|(f<<14);return{value:e&0xFFFF,index:(e>>16)&0xFFFF}}
+function dgFeed(bytes){
+  const now=Date.now();if(dgBuf.length&&now-dgLast>400)dgBuf=[];dgLast=now;   // nedokončený zbytek starší než 0,4 s zahodit
+  for(const b of bytes)dgBuf.push(b);
+  while(dgBuf.length){
+    const L=dgBuf[0];if(L<10){dgBuf.shift();continue}
+    const need=1+L+(settings.dgRssi?1:0);if(dgBuf.length<need)break;
+    const fr=Uint8Array.from(dgBuf.splice(0,need));let rssi=null,f=fr;
+    if(settings.dgRssi){rssi=-Math.round(fr[need-1]/2);f=fr.slice(0,need-1)}
+    const o=handleTelegram(f,rssi);
+    if(o&&o.bad){dgBuf=[];if(devState)devState.crc++;break}else if(devState)devState.ok++;
+  }
+}
+async function connectDongle(){
+  closeSheets();
+  const baud=settings.baud||19200;
+  try{
+    if(navigator.serial&&!(isAndroid&&navigator.usb)){
+      const port=await navigator.serial.requestPort();
+      await port.open({baudRate:baud,dataBits:8,stopBits:1,parity:'none',flowControl:'none'});
+      dg={kind:'serial',port,open:true,name:'USB dongle'};
+      const i=port.getInfo?port.getInfo():{};if(i.usbVendorId)dg.name+=` ${i.usbVendorId.toString(16).padStart(4,'0')}:${(i.usbProductId||0).toString(16).padStart(4,'0')}`;
+      (async()=>{while(dg&&dg.open&&port.readable){const r=port.readable.getReader();dg.reader=r;
+        try{for(;;){const {value,done}=await r.read();if(done)break;if(value)dgFeed(value)}}catch(e){}finally{try{r.releaseLock()}catch(e){}}
+        if(dg&&dg.open){await sleep(300)}}})();
+    }else if('usb' in navigator){
+      const d=await navigator.usb.requestDevice({filters:[{vendorId:0x0403}]});
+      await d.open();if(d.configuration===null)await d.selectConfiguration(1);
+      const itf=d.configuration.interfaces[0];await d.claimInterface(itf.interfaceNumber);
+      const eps=itf.alternate.endpoints,epIn=eps.find(e=>e.direction==='in'),pk=(epIn&&epIn.packetSize)||64;
+      const idx=itf.interfaceNumber?itf.interfaceNumber+1:0;
+      const ctl=(req,val,ix=idx)=>d.controlTransferOut({requestType:'vendor',recipient:'device',request:req,value:val,index:ix});
+      const b=ftdiDiv(baud);
+      await ctl(0x00,0);await ctl(0x03,b.value,b.index|(idx<<8));await ctl(0x04,0x0008);await ctl(0x02,0);await ctl(0x01,0x0303);await ctl(0x09,16);
+      dg={kind:'usb',device:d,open:true,name:'USB dongle '+(d.productName||'FTDI')};
+      (async()=>{while(dg&&dg.open){try{const r=await d.transferIn(epIn.endpointNumber,pk*8);
+          if(r.data&&r.data.byteLength){const u=new Uint8Array(r.data.buffer,r.data.byteOffset,r.data.byteLength),out=[];for(let i=0;i<u.length;i+=pk)for(let j=i+2;j<Math.min(i+pk,u.length);j++)out.push(u[j]);if(out.length)dgFeed(out)}}
+        catch(e){if(dg&&dg.open){dgClose(false);toast('USB dongle se odpojil.',{err:true,ms:7000})}break}}})();
+    }else{showConnErr('Tento prohlížeč neumí USB. Použijte Chrome (Android, PC) nebo Edge (PC).');return}
+    dgBuf=[];devState={t:new Date(),bat:null,mode:null,rx:true,dongle:true,ok:0,crc:0,bit:0,fw:null,hw:null};rxSince=new Date();settings.link='usb';LS('ewrsk_settings',settings);
+    toast(`${dg.name} připojen, ${baud} Bd. Přijímá v režimu nastaveném v modulu.`,{ms:6000});setTop();drawZas(true);
+  }catch(e){if(e.name==='NotFoundError'){setTop();return}dg=null;showConnErr(e.message||String(e))}
+}
+async function dgClose(manual){
+  const d=dg;if(!d)return;d.open=false;dg=null;devState=null;rxSince=null;
+  try{if(d.kind==='serial'){try{d.reader&&await d.reader.cancel()}catch(e){}await d.port.close()}else{await d.device.close()}}catch(e){}
+  if(manual)toast('USB dongle odpojen.');setTop();drawZas(true);
+}
+if(navigator.serial)navigator.serial.addEventListener('disconnect',e=>{if(dg&&dg.kind==='serial'&&e.target===dg.port){dgClose(false);toast('USB dongle se odpojil.',{err:true,ms:7000})}});
+if(navigator.usb)navigator.usb.addEventListener('disconnect',e=>{if(dg&&dg.kind==='usb'&&e.device===dg.device){dgClose(false);toast('USB dongle se odpojil.',{err:true,ms:7000})}});
 
 // ================= start =================
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
