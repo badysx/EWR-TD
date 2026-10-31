@@ -31,6 +31,11 @@ button{cursor:pointer}
 #tLabel{white-space:nowrap}
 .top .st{min-width:0;flex-shrink:1}
 @media (max-width:440px){.top .wrap{gap:6px;padding:0 0 0 12px}#bDisconnect,#bConnect{padding:0 9px;font-size:14px;height:34px}.top .st{font-size:14px}.rxw{margin-left:3px;padding:1px 5px}#bMenu{width:38px}}
+.bat{position:relative;display:inline-flex;align-items:center;justify-content:center;width:52px;height:24px;border:2px solid var(--ink);border-radius:6px;flex-shrink:0;margin-right:5px}
+.bat::after{content:"";position:absolute;right:-6px;top:6px;width:3px;height:8px;background:var(--ink);border-radius:0 2px 2px 0}
+.bat i{position:absolute;left:2px;top:2px;bottom:2px;border-radius:2px;background:#8fd6ae}
+.bat.mid i{background:#fbd38a}.bat.low i{background:#f5a3a3}.bat.low{border-color:var(--bad)}.bat.low::after{background:var(--bad)}
+.top .bat b{position:relative;font-size:13px;font-weight:800;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
 .rxw{display:inline-block;margin-left:4px;padding:1px 6px;border-radius:4px;transition:background .6s,color .6s}
 .rxw.flash{background:var(--ok);color:#fff;transition:none}
 .iconbtn{width:44px;height:44px;border:0;background:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -164,7 +169,7 @@ main .wrap{padding:8px 16px 150px}
 <body>
 
 <header class="top"><div class="wrap">
-  <span class="dot lead-only" id="tDot"></span>
+  <span class="bat lead-only" id="tBat" hidden aria-label="baterie EWR-TD"><i id="tBatFill"></i><b id="tBatTxt"></b></span><span class="dot lead-only" id="tDot"></span>
   <b id="tLabel">EWR-TD</b>
   <span class="st" id="tSt"><span id="tInfo">nepřipojeno</span><span id="tRx" class="rxw" hidden>přijímá</span></span>
   <span style="flex:1"></span>
@@ -402,10 +407,12 @@ function batEstimate(){if(batHist.length<2)return null;const a=batHist[0],b=batH
 const connected=()=>isDemo||!!(dev&&dev.gatt&&dev.gatt.connected&&chCmd);
 function setTop(kind,txt){
   const d=$('tDot'),info=$('tInfo'),rx=$('tRx');
+  const bat=$('tBat');
+  if(isLead()&&connected()&&devState&&devState.bat!=null){const v=Math.max(0,Math.min(100,devState.bat));bat.hidden=false;bat.className='bat lead-only'+(v<20?' low':v<=50?' mid':'');$('tBatFill').style.width=`calc(${v}% - 4px)`;$('tBatTxt').textContent=v+' %';bat.title='baterie EWR-TD '+v+' %'}else bat.hidden=true;
   if(!isLead()){$('tLabel').textContent='montážník';info.textContent=settings.who||'';rx.hidden=true;$('bConnect').hidden=true;$('bDisconnect').hidden=true;return}
   $('tLabel').textContent='EWR-TD';
   if(kind){d.className='dot'+(kind==='err'?' err':'');info.textContent=txt;rx.hidden=true;return}
-  if(connected()&&devState){d.className='dot'+(devState.rx?' on':'');info.textContent=`${devState.bat} %${isDemo?' demo':''}`;rx.textContent=devState.rx?'přijímá':'příjem vypnut';rx.hidden=false}
+  if(connected()&&devState){d.className='dot'+(devState.rx?' on':'');info.textContent=isDemo?'demo':'';rx.textContent=devState.rx?'přijímá':'příjem vypnut';rx.hidden=false}
   else{d.className='dot';info.textContent='nepřipojeno';rx.hidden=true}
   $('bConnect').hidden=connected();$('bDisconnect').hidden=!connected();
 }
@@ -427,8 +434,8 @@ function stateOf(r){
     if(rxSince&&r.last&&now-r.last>WAIT_MIN*60000&&now-rxSince>WAIT_MIN*60000)return{k:'prob',t:'nevysílá',long:`naposledy vysílalo v ${tm(r.last)}`};
     return{k:'ok',t:'vysílá',long:'vysílá'+(r.last?`, naposledy ${tm(r.last)}`:'')};
   }
-  const since=Math.max(+r.scanned,rxSince?+rxSince:Infinity);
-  if(rxSince&&now-since>WAIT_MIN*60000)return{k:'prob',t:'nevysílá',long:`nevysílá ${mins(now-since)} min od naskenování`};
+  const since=Math.max(+r.scanned,r.checkFrom||0,rxSince?+rxSince:Infinity);
+  if(rxSince&&now-since>WAIT_MIN*60000)return{k:'prob',t:'nevysílá',long:`nevysílá ${mins(now-since)} min od ${r.checkFrom&&r.checkFrom>+r.scanned?'nové kontroly':'naskenování'}`};
   if(!r.id)return{k:'wait',t:'čeká',long:'čeká – ID určí první vysílání'};
   return{k:'wait',t:'čeká',long:rxSince?'čeká na první vysílání':'čeká – příjem EWR-TD není zapnutý'};
 }
@@ -659,6 +666,15 @@ async function shareCsv(name,text,title){
   try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title});return}}catch(e){if(e.name==='AbortError')return}
   download(name,text);toast('Tabulka uložena do stažených souborů.');
 }
+function recheckHouse(rows){
+  if(!confirm(`Znovu zkontrolovat vysílání v domě ${place.house||''}?\n\nU ${pl(rows.length,'měřidla','měřidel','měřidel')} se smaže informace o přijatém vysílání a aplikace bude znovu čekat na první telegram. Byt, místnost a ID zůstanou.`))return;
+  const now=Date.now(),ids=new Set(rows.map(r=>r.id).filter(Boolean));
+  rows.forEach(r=>Object.assign(r,{first:null,last:null,count:0,rssi:null,status:null,checkFrom:now}));
+  for(const [k,m] of meters)if(ids.has(m.id))meters.delete(k);
+  saveInstalls();saveMeters();dirty=true;closeSheets();
+  const on=connected()&&devState&&devState.rx;
+  toast(`Kontrola znovu spuštěna: ${pl(rows.length,'měřidlo čeká','měřidla čekají','měřidel čeká')} na vysílání.`+(on?'':' Připojte EWR-TD a zapněte příjem.'),{ms:6000});
+}
 function openFinish(){
   const rows=installs.filter(inCurHouse);const st=rows.map(r=>({r,s:stateFor(r)}));const W=L();
   const ok=st.filter(x=>x.s.k==='ok').length,open=st.filter(x=>x.s.k!=='ok');
@@ -669,9 +685,10 @@ function openFinish(){
       <div class="big3"><div><b>${rows.length}</b><span>měřidel</span></div><div><b>${ok}</b><span>${W.ok}</span></div><div><b>${open.length}</b><span>${W.open}</span></div></div>${rows.length?`<div style="font-size:13px;color:rgba(255,255,255,.68)">montovali: ${whoLine}</div>`:''}</div>
     <div class="lead-only" style="font-size:14px;color:var(--muted)">Montovalo víc lidí? Před sdílením tabulky převezměte jejich záznamy: menu ⋮ → převzít záznamy.</div>
     ${open.length?'<div class="eyebrow">'+W.open+'</div><div class="list">'+open.map(({r,s})=>`<button class="mrow" data-uid="${r.uid}" style="padding:10px 0"><span style="flex:1"><b style="color:var(--ink)">byt ${esc(r.flat)} · ${esc(r.room)}</b><br><span class="mono" style="font-size:13px">${r.id||esc((r.cands||[]).join(' / '))}</span></span><span style="font-size:13px;text-align:right;color:${s.k==='prob'?'var(--bad)':'var(--muted)'}">${s.long}</span></button>`).join('')+'</div>':(rows.length?'<div style="font-size:16px;color:var(--ink)">'+(isLead()?'Všechna měřidla v domě vysílají.':'Všechny záznamy jsou předané vedoucímu.')+'</div>':'<div style="color:var(--muted)">V tomto domě zatím nejsou žádná měřidla.</div>')}
-    <div class="acts" style="flex-direction:column">${isLead()?'':`<button class="btn primary" id="fnQr" style="height:54px" ${rows.length?'':'disabled'}>předat vedoucímu (QR)</button>`}<button class="btn ${isLead()?'primary':''}" id="fnShare" style="height:54px" ${rows.length?'':'disabled'}>sdílet tabulku (e-mail, Teams…)</button><button class="btn" data-close>pokračovat v montáži</button></div>`;
+    <div class="acts" style="flex-direction:column">${isLead()?'':`<button class="btn primary" id="fnQr" style="height:54px" ${rows.length?'':'disabled'}>předat vedoucímu (QR)</button>`}<button class="btn ${isLead()?'primary':''}" id="fnShare" style="height:54px" ${rows.length?'':'disabled'}>sdílet tabulku (e-mail, Teams…)</button>${isLead()&&rows.length?'<button class="btn" id="fnRecheck">znovu zkontrolovat vysílání v domě</button>':''}<button class="btn" data-close>pokračovat v montáži</button></div>`;
   $('finishBody').querySelectorAll('[data-uid]').forEach(b=>b.onclick=()=>openDetail(b.dataset.uid));
   if($('fnQr'))$('fnQr').onclick=openQrOut;
+  if($('fnRecheck'))$('fnRecheck').onclick=()=>recheckHouse(rows);
   $('fnShare').onclick=()=>shareCsv(fname('montaz_'+(place.house||'dum')),csvOf(rows),'Montáž '+place.house);
   openSheet('shFinish');
 }
