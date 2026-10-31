@@ -178,7 +178,7 @@ main .wrap{padding:8px 16px 150px}
 .zsteps{display:flex;gap:6px}.zsteps span{flex:1;display:flex;align-items:center;gap:6px;padding:8px;border:1.5px solid var(--b2);font-size:14px;color:var(--muted)}
 .zsteps b{width:22px;height:22px;border-radius:999px;display:grid;place-items:center;background:var(--b1);color:var(--ink);font-size:12px}
 .zsteps .act{border-color:var(--red);color:var(--ink);font-weight:700}.zsteps .act b{background:var(--red);color:#fff}.zsteps .ok b{background:var(--ok);color:#fff}
-.zbig{display:flex;align-items:baseline;gap:12px}.zbig b{font-size:56px;font-weight:900;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}.zbig span{color:var(--muted);font-size:15px}
+.zbig{display:flex;align-items:baseline;gap:12px}.zbig>b{flex-shrink:0}@media (max-width:400px){.zbig .zrest{display:none}}.zbig .zend{margin-left:auto;white-space:nowrap}.zbig .zend b{font-size:28px;font-weight:900;color:var(--ink);font-variant-numeric:tabular-nums}.zbig b{font-size:56px;font-weight:900;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}.zbig span{color:var(--muted);font-size:15px}
 .zmeter{height:8px;background:var(--b1)}.zmeter i{display:block;height:100%;background:var(--red);transition:width .9s linear}
 .zcount{font-size:16px;color:var(--body)}.zcount b{font-size:22px;color:var(--ink)}
 .okbox{background:#e8f6ee;border:1px solid #b9e3c9;color:#145c35;padding:10px 12px;font-size:15px}
@@ -270,7 +270,7 @@ const MEDIUM={0x02:'elektřina',0x03:'plyn',0x04:'teplo',0x06:'TUV',0x07:'voda',
 const MAN={APA:'Apator',KAM:'Kamstrup',DME:'Diehl',HYD:'Diehl',QDS:'Qundis',SON:'Sontex',LSE:'Siemens',ITW:'Itron',SEN:'Sensus',BMT:'B METERS',ZRI:'Zenner',ZRM:'Zenner',EFE:'Engelmann',TCH:'Techem',IST:'ista',LUG:'Landis+Gyr',ELS:'Elster',MAD:'Maddalena',AMT:'Aquametro',WEH:'Wehrle'};
 const typeName=t=>t==null?'':(MEDIUM[t]||'typ 0x'+h2(t));
 const manName=m=>m?(MAN[m]||m):'';
-const APP_VER=10;
+const APP_VER=11;
 const WAIT_MIN=10;   // po kolika minutách bez vysílání je měřidlo „problém“
 
 
@@ -672,7 +672,7 @@ function drawZas(force){
       <div class="acts" style="flex-direction:column"><button class="btn primary" id="zGo" style="height:54px">1. spustit snímání rádiového pozadí</button>
       <span style="font-size:13px;color:var(--muted)">Kontejner musí být prázdný, bez palety pro zákazníka. Telefon nechte s rozsvíceným displejem, aplikaci nezavírejte.</span></div>`;
   }else if(ph==='bg'){
-    body=`${conn}<div class="zbig"><b id="zT">${mmss(zas.bgEnd-now)}</b><span>zbývá · rádiové pozadí<br>hotovo v ${hhmm(zas.bgEnd)}</span></div>
+    body=`${conn}<div class="zbig"><b id="zT">${mmss(zas.bgEnd-now)}</b><span class="zrest">zbývá</span><span class="zend">hotovo v <b>${hhmm(zas.bgEnd)}</b></span></div>
       <div class="zmeter"><i id="zM" style="width:${Math.min(100,100*(now-zas.bgStart)/(zas.bgEnd-zas.bgStart))}%"></i></div>
       <div class="zcount" id="zC">${zasCountHtml('bg',E)}</div>
       <div class="zbtns"><button class="btn" id="zEnd">ukončit snímání rádiového pozadí</button><button class="btn danger" id="zReset">zrušit</button><button class="btn" id="zBgView">zobrazit zachycené rádiové pozadí</button></div>
@@ -683,7 +683,7 @@ function drawZas(force){
       <div style="font-size:16px;color:var(--ink)">Přivezte paletu vodoměrů pro zákazníka do kontejneru a spusťte načítání zásilky.</div>${conn}
       <div class="acts" style="flex-direction:column"><button class="btn primary" id="zGo2" style="height:54px">2. spustit snímání zásilky (${zas.shMin} min)</button><button class="btn" id="zBgView">zobrazit nasnímané rádiové pozadí (${Object.keys(zas.bg).length})</button><button class="btn" id="zReset">začít znovu</button></div>`;
   }else if(ph==='ship'){
-    body=`${conn}<div class="zbig"><b id="zT">${mmss(zas.shEnd-now)}</b><span>zbývá · snímání zásilky<br>hotovo v ${hhmm(zas.shEnd)}</span></div>
+    body=`${conn}<div class="zbig"><b id="zT">${mmss(zas.shEnd-now)}</b><span class="zrest">zbývá</span><span class="zend">hotovo v <b>${hhmm(zas.shEnd)}</b></span></div>
       <div class="zmeter"><i id="zM" style="width:${Math.min(100,100*(now-zas.shStart)/(zas.shEnd-zas.shStart))}%"></i></div>
       <div class="zcount" id="zC">${zasCountHtml('ship',E)}</div>
  <div class="zbtns"><button class="btn" id="zEnd">ukončit snímání zásilky dříve</button><button class="btn danger" id="zReset">zrušit</button><button class="btn" id="zBgView">zobrazit nasnímané rádiové pozadí (${Object.keys(zas.bg).length})</button></div>
