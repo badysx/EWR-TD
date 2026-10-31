@@ -307,6 +307,7 @@ const MAN={APA:'Apator',KAM:'Kamstrup',DME:'Diehl',HYD:'Diehl',QDS:'Qundis',SON:
 const ROOMS=['koupelna','WC','kuchyně','chodba','pokoj','obývák','komora','pracovna'];
 const typeName=t=>t==null?'':(MEDIUM[t]||'typ 0x'+h2(t));
 const manName=m=>m?(MAN[m]||m):'';
+const APP_VER=34;    // verze aplikace – zobrazí se v menu, posílá se s předávanými záznamy
 const WAIT_MIN=10;   // po kolika minutách bez vysílání je měřidlo „problém“
 
 // ================= stav =================
@@ -741,7 +742,7 @@ function renderMenu(){
     <button class="mi" id="mClearAir" style="color:var(--bad)">vymazat zachycená vysílání z okolí (${pl(meters.size,'měřidlo','měřidla','měřidel')})</button>`:''}
     <button class="mi" id="mRole">změnit roli (teď: ${lead?'vedoucí instalace':'montážník'})</button>
     <button class="mi" id="mClear" style="color:var(--bad)">vymazat data montáže</button>
-    <div style="font-size:13px;color:var(--muted);padding-top:6px">Soukromí: všechna data jsou uložená jen v tomto zařízení. Aplikace nic neodesílá na internet – ven jdou jen data, která sami sdílíte (tabulka, soubor, QR kód).</div>`;
+    <div style="font-size:13px;color:var(--muted);padding-top:6px">Verze aplikace ${APP_VER}. Soukromí: všechna data jsou uložená jen v tomto zařízení. Aplikace nic neodesílá na internet – ven jdou jen data, která sami sdílíte (tabulka, soubor, QR kód).</div>`;
   const on=(id,f)=>{const e=$(id);if(e)e.onclick=f};
   on('mConn',()=>{closeSheets();connect()});
   on('mRx',()=>setRx(!(devState&&devState.rx)).then(()=>dirty=true));
@@ -787,7 +788,7 @@ const unpack=o=>({owner:o.o||'',id:o.i||'',cands:o.i?null:(o.c||idCandidates(o.k
 function packQr(recs,who){
   const H=[...new Set(recs.map(r=>r.house||''))],t0=Math.min(...recs.map(r=>Math.floor(+r.scanned/60000)));
   const O={};recs.forEach(r=>{if(r.owner)O[H.indexOf(r.house||'')+'|'+(r.flat||'')]=r.owner});
-  return {w:who,h:H,t:t0,o:O,d:recs.map(r=>{const ri=ROOMS.indexOf(r.room);const a=[r.id||'',H.indexOf(r.house||''),r.flat||'',ri>=0?ri:(r.room||''),Math.floor(+r.scanned/60000)-t0,r.serial||'',(r.raw&&r.raw!==r.id)?r.raw:'',(r.who&&r.who!==who)?r.who:''];
+  return {av:APP_VER,w:who,h:H,t:t0,o:O,d:recs.map(r=>{const ri=ROOMS.indexOf(r.room);const a=[r.id||'',H.indexOf(r.house||''),r.flat||'',ri>=0?ri:(r.room||''),Math.floor(+r.scanned/60000)-t0,r.serial||'',(r.raw&&r.raw!==r.id)?r.raw:'',(r.who&&r.who!==who)?r.who:''];
     while(a.length>5&&a[a.length-1]==='')a.pop();return a})}
 }
 function unpackQr(o){return o.d.map(a=>{const [i,hi,f,ro,dt,se,k,w]=a;const raw=k||i||'';
@@ -804,7 +805,7 @@ function mergeRecords(list){
       else res.conflicts.push({mine:ex,theirs:n});
       return;
     }
-    const r=Object.assign({uid:Date.now().toString(36)+Math.random().toString(36).slice(2,8),src:'import',handed:true,first:null,last:null,count:0,rssi:null,man:'',type:null},n);
+    const r=Object.assign({uid:Date.now().toString(36)+Math.random().toString(36).slice(2,8),src:'import',handed:true,first:null,last:null,count:0,rssi:null,man:'',type:null,maker:makerFromCode(n.raw)},n);
     if(!r.id&&r.cands){for(const m of meters.values())if(r.cands.includes(m.id)){r.id=m.id;r.cands=null;learnRule(r.raw,m.id);break}}
     r.owner=r.owner||ownerOf(r.house,r.flat);fillFromMeter(r);installs.push(r);res.added++;res.recs.push(r);
   });
@@ -815,7 +816,8 @@ function mergeRecords(list){
   freshSet.clear();res.recs.forEach(r=>freshSet.add(r.uid));clearTimeout(mergeRecords.t);mergeRecords.t=setTimeout(()=>{freshSet.clear();dirty=true},30000);
   saveInstalls();dirty=true;return res;
 }
-function showMerge(res,from){
+function showMerge(res,from,av){
+  const old=!(av>=30);
   const draw=()=>{
     const open=res.conflicts.filter(c=>!c.done);
     $('importBody').innerHTML=`<div class="phead"><div><div class="eyebrow">převzato${from?' od '+esc(from):''}</div><h2>${pl(res.added,'nový záznam','nové záznamy','nových záznamů')}</h2></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
@@ -825,6 +827,7 @@ function showMerge(res,from){
         <button class="btn sm" data-k="${i}" data-a="theirs" style="text-align:left">převzít: ${esc(placeOf(c.theirs))}${c.theirs.who?' ('+esc(c.theirs.who)+')':''}</button></div>`).join('')}</div>
       ${res.recs.length?`<div style="font-size:15px;color:var(--ink)">${res.switched?'Přepnuto na dům ':'Dům '}<b>${esc(res.houses.map(h=>h[0]).join(', '))}</b>. Záznamy najdete v seznamu, zvýrazněné.</div>
       <div class="list" style="max-height:34vh;overflow:auto">${res.recs.slice(0,60).map(r=>`<div class="li" style="font-size:15px"><span>byt ${esc(r.flat||'–')} · ${esc(r.room||'–')}</span><span class="mono">${r.id||esc((r.cands||[]).join(' / '))}</span></div>`).join('')}</div>`:''}
+      ${old?`<div class="warnbox">Kolega má starší verzi aplikace${av?' ('+av+')':''}. Majitel bytu a další novější údaje se nepřenesly. Ať si aplikaci aktualizuje (zavřít a znovu otevřít s internetem) a záznamy pošle znovu.</div>`:''}
       <div class="acts"><button class="btn primary grow" data-close>hotovo</button></div>`;
     $('importBody').querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{const c=open[+b.dataset.k];
       if(b.dataset.a==='theirs'){Object.assign(c.mine,{house:c.theirs.house,flat:c.theirs.flat,room:c.theirs.room,who:c.theirs.who||c.mine.who});freshSet.add(c.mine.uid);if(!c.mine.serial)c.mine.serial=c.theirs.serial;saveInstalls();dirty=true}
@@ -867,7 +870,7 @@ function importPart(val){
   $('scMsg').textContent=`převzato ${have} z ${qrParts.N} kódů`+(miss.length&&miss.length<=6?` – chybí ${miss.join(', ')}`:'');
   if(have===qrParts.N){
     closeScanner();
-    try{const json=Array.from({length:qrParts.N},(_,k)=>qrParts.parts[k+1]).join('');const o=JSON.parse(json);showMerge(mergeRecords(qrParts.ver==='2'?unpackQr(o):o.d.map(unpack)),o.w)}
+    try{const json=Array.from({length:qrParts.N},(_,k)=>qrParts.parts[k+1]).join('');const o=JSON.parse(json);showMerge(mergeRecords(qrParts.ver==='2'?unpackQr(o):o.d.map(unpack)),o.w,o.av)}
     catch(e){toast('Záznamy se nepodařilo načíst: '+e.message,{err:true})}
     qrParts=null;
   }
@@ -875,7 +878,7 @@ function importPart(val){
 // --- soubor ---
 async function fileOut(){
   const inHouse=installs.filter(inCurHouse);
-  const text=JSON.stringify({app:'ewrtd-montaz',v:1,w:settings.who||'',exported:new Date().toISOString(),d:inHouse.map(pack)});
+  const text=JSON.stringify({app:'ewrtd-montaz',v:1,av:APP_VER,w:settings.who||'',exported:new Date().toISOString(),d:inHouse.map(pack)});
   const name=fname('zaznamy_'+(place.house||'dum')+'_'+(settings.who||'montaznik')).replace(/\.csv$/,'.json');
   const file=new File([text],name,{type:'application/json'});
   const mark=()=>{inHouse.forEach(r=>{if(r.src!=='import')r.handed=true});saveInstalls();dirty=true};
@@ -891,9 +894,9 @@ function parseCsvRecords(text){
 }
 $('fileIn').onchange=async e=>{
   const f=e.target.files[0];e.target.value='';if(!f)return;
-  try{const t=await f.text();let list,from='';
-    if(t.trim().startsWith('{')){const o=JSON.parse(t);if(!o.d)throw new Error('neznámý formát souboru');list=o.d.map(unpack);from=o.w}else list=parseCsvRecords(t);
-    closeSheets();showMerge(mergeRecords(list),from)}
+  try{const t=await f.text();let list,from='',av=0;
+    if(t.trim().startsWith('{')){const o=JSON.parse(t);if(!o.d)throw new Error('neznámý formát souboru');list=o.d.map(unpack);from=o.w;av=o.av}else{list=parseCsvRecords(t);av=t.includes(';majitel;')?APP_VER:0}
+    closeSheets();showMerge(mergeRecords(list),from,av)}
   catch(err){toast('Soubor se nepodařilo načíst: '+err.message,{err:true})}
 };
 
