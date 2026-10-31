@@ -95,7 +95,7 @@ main .wrap{padding:8px 16px 150px}
 .mrow .id{flex:1;min-width:0;font-family:var(--mono);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .stt{width:96px;flex-shrink:0;display:flex;align-items:center;justify-content:flex-end;gap:4px;font-size:13px}
 .stt.ok{color:var(--ink)}.stt.wait{color:var(--muted)}.stt.prob{color:var(--bad);font-weight:700}
-.fresh{animation:fl 1.6s ease-out}.mrow.imp{background:#fff6dc}@keyframes fl{from{background:#e8f6ee}to{background:#fff}}
+.fresh{animation:fl 1.6s ease-out}.flat h3 .fh{margin-left:0;display:flex;align-items:baseline;gap:8px;min-width:0;font-size:16px;font-weight:700;color:var(--ink)}.flat h3 .fh+span{flex-shrink:0;padding-left:8px}.flat h3 .fh small{font-size:14px;font-weight:400;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mrow.imp{background:#fff6dc}@keyframes fl{from{background:#e8f6ee}to{background:#fff}}
 .empty{background:#fff;border:1px dashed var(--b3);border-radius:10px;padding:22px 18px;color:var(--muted);display:grid;gap:10px}
 .empty b{color:var(--ink)}
 .empty ol{margin:0;padding-left:20px}
@@ -253,6 +253,7 @@ main .wrap{padding:8px 16px 150px}
     <label class="field full">dům (adresa)<input id="fHouse" list="dlHouse" autocomplete="off" placeholder="např. Lipová 12"></label>
     <label class="field">byt<input id="fFlat" list="dlFlat" autocomplete="off" placeholder="např. 5"></label>
     <label class="field">místnost<select id="fRoom"></select></label>
+    <label class="field full">majitel bytu<input id="fOwner" autocomplete="off" placeholder="nepovinné, např. Marie Dvořáková"></label>
     <label class="field full">vaše jméno (montážník)<input id="fWho" autocomplete="name" placeholder="např. Jan Novák"></label>
   </div>
   <datalist id="dlHouse"></datalist><datalist id="dlFlat"></datalist>
@@ -317,6 +318,12 @@ const sameHouse=(a,b)=>normHouse(a)===normHouse(b);
 const inCurHouse=r=>sameHouse(r.house,place.house);
 (LS('ewrtd_meters')||{meters:[]}).meters.forEach(m=>{m.first=new Date(m.first);m.last=new Date(m.last);meters.set(m.k,m)});
 const saveInstalls=()=>LS('ewrtd_install',installs);
+// majitel bytu (nepovinný): mapa dům|byt → jméno, kopie u záznamů kvůli sdílení a tabulce
+let owners=LS('ewrtd_owners')||{};
+const flatKey=(h,f)=>normHouse(h)+'|'+String(f||'').trim().toLowerCase();
+function ownerOf(h,f){const k=flatKey(h,f);if(owners[k]!=null)return owners[k];const r=installs.find(x=>x.owner&&flatKey(x.house,x.flat)===k);return r?r.owner:''}
+function setOwner(h,f,name,onlyIfEmpty){if(!String(f||'').trim())return;name=String(name||'').trim();const k=flatKey(h,f);if(onlyIfEmpty&&ownerOf(h,f))return;
+  owners[k]=name;LS('ewrtd_owners',owners);installs.forEach(r=>{if(flatKey(r.house,r.flat)===k)r.owner=name})}
 const savePlace=()=>LS('ewrtd_loc',place);
 let mSaveT=null;const saveMeters=()=>{if(!mSaveT)mSaveT=setTimeout(()=>{mSaveT=null;LS('ewrtd_meters',{meters:[...meters.values()].slice(-2000)})},5000)};
 
@@ -466,7 +473,7 @@ function render(){
   $('sumBar').hidden=!n;
   const flats=[...new Set(st.map(x=>x.r.flat||''))].sort(flatSort);
   $('flats').innerHTML=flats.map(f=>{const it=st.filter(x=>(x.r.flat||'')===f);const okn=it.filter(x=>x.s.k==='ok').length;
-    return `<div class="flat"><h3>${f?'byt '+esc(f):'bez bytu'}<span>${okn} z ${it.length} ${W.ok}</span></h3>`+
+    const ow=ownerOf(place.house,f);return `<div class="flat"><h3><span class="fh">${f?'byt '+esc(f):'bez bytu'}${ow?`<small>${esc(ow)}</small>`:''}</span><span>${okn} z ${it.length} ${W.ok}</span></h3>`+
       it.sort((a,b)=>ROOMS.indexOf(a.r.room)-ROOMS.indexOf(b.r.room)).map(({r,s})=>`<button class="mrow ${r.uid===freshUid?'fresh':''}${freshSet.has(r.uid)?' imp':''}" data-uid="${r.uid}"><span class="room">${esc(r.room||'–')}</span><span class="id">${r.id||'? '+esc((r.cands||[]).join(' / '))}</span>${isLead()?sigBars(r.rssi):''}<span class="stt ${s.k}">${ICON[s.k]}${s.t}</span></button>`).join('')+'</div>'}).join('');
   $('empty').hidden=!!n;
   freshUid=null;
@@ -497,13 +504,14 @@ function askRoom(){const v=(prompt('Název místnosti')||'').trim();return v||nu
 
 // místo
 function openPlace(){
-  $('fHouse').value=place.house;$('fFlat').value=place.flat;$('fWho').value=settings.who||'';$('fRoom').innerHTML=roomOpts(place.room);
+  $('fHouse').value=place.house;$('fFlat').value=place.flat;$('fOwner').value=ownerOf(place.house,place.flat);$('fWho').value=settings.who||'';$('fRoom').innerHTML=roomOpts(place.room);
   const u=k=>[...new Set(installs.map(r=>r[k]).filter(Boolean))].map(v=>`<option value="${esc(v)}">`).join('');
   $('dlHouse').innerHTML=u('house');$('dlFlat').innerHTML=[...new Set(installs.filter(r=>sameHouse(r.house,$('fHouse').value)).map(r=>r.flat).filter(Boolean))].sort(flatSort).map(v=>`<option value="${esc(v)}">`).join('');
   openSheet('shPlace');setTimeout(()=>(place.house?$('fFlat'):$('fHouse')).focus(),80);
 }
+const ownerFill=()=>{$('fOwner').value=ownerOf($('fHouse').value,$('fFlat').value)};$('fFlat').addEventListener('input',ownerFill);$('fHouse').addEventListener('change',ownerFill);
 $('fRoom').onchange=e=>{if(e.target.value==='__other'){const v=askRoom();e.target.innerHTML=roomOpts(v||place.room)}};
-$('fSave').onclick=()=>{settings.who=$('fWho').value.trim();LS('ewrtd_settings',settings);place={house:$('fHouse').value.trim(),flat:$('fFlat').value.trim(),room:$('fRoom').value==='__other'?place.room:$('fRoom').value};savePlace();closeSheets();dirty=true};
+$('fSave').onclick=()=>{settings.who=$('fWho').value.trim();LS('ewrtd_settings',settings);place={house:$('fHouse').value.trim(),flat:$('fFlat').value.trim(),room:$('fRoom').value==='__other'?place.room:$('fRoom').value};savePlace();if(place.flat&&$('fOwner').value.trim()!==ownerOf(place.house,place.flat))setOwner(place.house,place.flat,$('fOwner').value);saveInstalls();closeSheets();dirty=true};
 $('bPlace').onclick=openPlace;
 $('rooms').onclick=e=>{const b=e.target.closest('[data-room]');if(!b)return;let r=b.dataset.room;if(r==='__other'){r=askRoom();if(!r)return}place.room=r;savePlace();dirty=true};
 $('flats').onclick=e=>{const b=e.target.closest('[data-uid]');if(b)openDetail(b.dataset.uid)};
@@ -591,7 +599,7 @@ function handleCode(val,fromRadio){
 function saveNew(p,replace){
   if(replace)installs=installs.filter(r=>r!==replace);
   const r={uid:Date.now().toString(36)+Math.random().toString(36).slice(2,6),who:settings.who||'',src:'own',id:p.id||'',cands:p.id?null:p.cands,raw:p.raw,house:p.house,flat:p.flat,room:p.room,maker:p.maker,serial:replace?replace.serial:'',scanned:new Date(),first:null,last:null,count:0,rssi:null,man:'',type:null};
-  fillFromMeter(r);installs.unshift(r);saveInstalls();freshUid=r.uid;dirty=true;
+  r.owner=ownerOf(r.house,r.flat);fillFromMeter(r);installs.unshift(r);saveInstalls();freshUid=r.uid;dirty=true;
   const prevRoom=place.room,i=ROOMS.indexOf(place.room);if(i>=0){place.room=ROOMS[(i+1)%ROOMS.length];savePlace()}
   toast(`uloženo ${r.id||'(ID určí vysílání)'} – ${r.room}`+(r.first?' · vysílá':'')+(p.how?` · ID ${p.how}`:''),{undo:()=>{installs=installs.filter(x=>x!==r);if(replace)installs.push(replace);place.room=prevRoom;savePlace();saveInstalls();dirty=true},ms:7000});
 }
@@ -620,6 +628,7 @@ function openDetail(uid){
   $('detailBody').innerHTML=`<div class="phead"><div><div class="eyebrow">měřidlo</div><h2 class="mono">${r.id||'?'}</h2></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
     <div class="fields">
       <label class="field">byt<input id="dFlat" value="${esc(r.flat)}"></label>
+      <label class="field">majitel bytu<input id="dOwner" value="${esc(ownerOf(r.house,r.flat))}" placeholder="nepovinné"></label>
       <label class="field">místnost<select id="dRoom">${roomOpts(r.room)}</select></label>
       <label class="field">rádiové ID<input id="dId" inputmode="numeric" value="${esc(r.id)}" placeholder="${esc((r.cands||[]).join(' / '))}"></label>
       <label class="field">číslo vodoměru<span style="display:flex;gap:6px"><input id="dSerial" value="${esc(r.serial)}" placeholder="nepovinné"><button class="btn sm" id="dSerialScan" type="button" style="height:46px">skenovat</button></span></label>
@@ -640,6 +649,7 @@ function openDetail(uid){
   $('dSerialScan').onclick=()=>{collect(false);closeSheets();openScanner('serial',r.uid)};
   const collect=(validate)=>{
     r.flat=$('dFlat').value.trim();r.house=$('dHouse').value.trim();r.serial=$('dSerial').value.trim();
+    const ow=$('dOwner').value.trim();if(ow!==ownerOf(r.house,r.flat))setOwner(r.house,r.flat,ow);else r.owner=ow;
     const room=$('dRoom').value;if(room!=='__other')r.room=room;
     const v=$('dId').value.trim();
     if(v!==(r.id||'')){
@@ -657,9 +667,9 @@ function openDetail(uid){
 }
 
 // ================= dokončení domu, export =================
-const CSV_HEAD='dum;byt;mistnost;radiove_id;mozna_id;cislo_vodomeru;vyrobce;typ;stav;detail_stavu;montoval;naskenovano;prvni_vysilani;posledni_vysilani;pocet_vysilani;signal_dbm;kod_ze_stitku';
+const CSV_HEAD='dum;byt;majitel;mistnost;radiove_id;mozna_id;cislo_vodomeru;vyrobce;typ;stav;detail_stavu;montoval;naskenovano;prvni_vysilani;posledni_vysilani;pocet_vysilani;signal_dbm;kod_ze_stitku';
 function csvOf(rows){return '﻿'+[CSV_HEAD].concat(rows.slice().sort((a,b)=>flatSort(a.house,b.house)||flatSort(a.flat,b.flat)).map(r=>{const s=stateFor(r);
-  return [r.house,r.flat,r.room,r.id,r.id?'':(r.cands||[]).join(' '),r.serial,manName(r.man)||r.maker||'',typeName(r.type),s.t,s.long,r.who||'',dtm(r.scanned),dtm(r.first),dtm(r.last),r.count||0,r.rssi??'',r.raw].map(v=>String(v??'').replace(/[;\r\n]/g,',')).join(';')})).join('\r\n')}
+  return [r.house,r.flat,ownerOf(r.house,r.flat),r.room,r.id,r.id?'':(r.cands||[]).join(' '),r.serial,manName(r.man)||r.maker||'',typeName(r.type),s.t,s.long,r.who||'',dtm(r.scanned),dtm(r.first),dtm(r.last),r.count||0,r.rssi??'',r.raw].map(v=>String(v??'').replace(/[;\r\n]/g,',')).join(';')})).join('\r\n')}
 const fname=p=>(p+'_'+new Date().toISOString().slice(0,10)).replace(/[^\w\-]+/g,'_')+'.csv';
 function download(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/csv'}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 async function shareCsv(name,text,title){
@@ -763,22 +773,24 @@ function openDiag(){
 
 // ================= sdílení mezi montážníky =================
 // kompaktní zápis záznamu: i=ID, c=možná ID, h=dům, f=byt, r=místnost, s=č. vodoměru, w=montážník, t=čas skenu, k=kód ze štítku
-const pack=r=>({i:r.id||'',c:r.id?undefined:r.cands,h:r.house,f:r.flat,r:r.room,s:r.serial||undefined,w:r.who||undefined,t:Math.round(+r.scanned/1000),k:r.raw});
-const unpack=o=>({id:o.i||'',cands:o.i?null:(o.c||idCandidates(o.k||'')),house:o.h||'',flat:o.f||'',room:o.r||'',serial:o.s||'',who:o.w||'',scanned:new Date((o.t||0)*1000),raw:o.k||o.i||''});
+const pack=r=>({o:r.owner||undefined,i:r.id||'',c:r.id?undefined:r.cands,h:r.house,f:r.flat,r:r.room,s:r.serial||undefined,w:r.who||undefined,t:Math.round(+r.scanned/1000),k:r.raw});
+const unpack=o=>({owner:o.o||'',id:o.i||'',cands:o.i?null:(o.c||idCandidates(o.k||'')),house:o.h||'',flat:o.f||'',room:o.r||'',serial:o.s||'',who:o.w||'',scanned:new Date((o.t||0)*1000),raw:o.k||o.i||''});
 // QR v2: domy jednou, místnost jako index, čas v minutách od prvního záznamu, kód ze štítku jen když se liší od ID
 function packQr(recs,who){
   const H=[...new Set(recs.map(r=>r.house||''))],t0=Math.min(...recs.map(r=>Math.floor(+r.scanned/60000)));
-  return {w:who,h:H,t:t0,d:recs.map(r=>{const ri=ROOMS.indexOf(r.room);const a=[r.id||'',H.indexOf(r.house||''),r.flat||'',ri>=0?ri:(r.room||''),Math.floor(+r.scanned/60000)-t0,r.serial||'',(r.raw&&r.raw!==r.id)?r.raw:'',(r.who&&r.who!==who)?r.who:''];
+  const O={};recs.forEach(r=>{if(r.owner)O[H.indexOf(r.house||'')+'|'+(r.flat||'')]=r.owner});
+  return {w:who,h:H,t:t0,o:O,d:recs.map(r=>{const ri=ROOMS.indexOf(r.room);const a=[r.id||'',H.indexOf(r.house||''),r.flat||'',ri>=0?ri:(r.room||''),Math.floor(+r.scanned/60000)-t0,r.serial||'',(r.raw&&r.raw!==r.id)?r.raw:'',(r.who&&r.who!==who)?r.who:''];
     while(a.length>5&&a[a.length-1]==='')a.pop();return a})}
 }
 function unpackQr(o){return o.d.map(a=>{const [i,hi,f,ro,dt,se,k,w]=a;const raw=k||i||'';
-  return {id:i||'',cands:i?null:idCandidates(raw),house:o.h[hi]||'',flat:f||'',room:typeof ro==='number'?ROOMS[ro]||'':ro||'',serial:se||'',who:w||o.w||'',scanned:new Date(((o.t||0)+(dt||0))*60000),raw}})}
+  return {owner:(o.o||{})[hi+'|'+(f||'')]||'',id:i||'',cands:i?null:idCandidates(raw),house:o.h[hi]||'',flat:f||'',room:typeof ro==='number'?ROOMS[ro]||'':ro||'',serial:se||'',who:w||o.w||'',scanned:new Date(((o.t||0)+(dt||0))*60000),raw}})}
 const placeOf=r=>`${r.house}, byt ${r.flat}, ${r.room}`;
 function mergeRecords(list){
   const res={added:0,same:0,conflicts:[],recs:[]};
   list.forEach(n=>{
     const known=installs.find(r=>r.house&&sameHouse(r.house,n.house));if(known)n.house=known.house;else if(place.house&&sameHouse(place.house,n.house))n.house=place.house;
     const ex=n.id?installs.find(r=>r.id===n.id):installs.find(r=>!r.id&&r.raw===n.raw);
+    if(n.owner)setOwner(n.house,n.flat,n.owner,true);
     if(ex){
       if(sameHouse(ex.house,n.house)&&ex.flat===n.flat&&ex.room===n.room){if(!ex.serial&&n.serial)ex.serial=n.serial;if(!ex.who&&n.who)ex.who=n.who;res.same++;res.recs.push(ex)}
       else res.conflicts.push({mine:ex,theirs:n});
@@ -786,7 +798,7 @@ function mergeRecords(list){
     }
     const r=Object.assign({uid:Date.now().toString(36)+Math.random().toString(36).slice(2,8),src:'import',handed:true,first:null,last:null,count:0,rssi:null,man:'',type:null},n);
     if(!r.id&&r.cands){for(const m of meters.values())if(r.cands.includes(m.id)){r.id=m.id;r.cands=null;learnRule(r.raw,m.id);break}}
-    fillFromMeter(r);installs.push(r);res.added++;res.recs.push(r);
+    r.owner=r.owner||ownerOf(r.house,r.flat);fillFromMeter(r);installs.push(r);res.added++;res.recs.push(r);
   });
   // zobrazit dům, do kterého záznamy patří (jako by je skenoval vedoucí sám)
   const houses={};res.recs.forEach(r=>{houses[r.house]=(houses[r.house]||0)+1});
@@ -867,7 +879,7 @@ function parseCsvRecords(text){
   if(ix('radiove_id')<0||ix('dum')<0)throw new Error('neznámý formát souboru');
   return lines.map(l=>{const c=l.split(';');const id=c[ix('radiove_id')]||'';const raw=c[ix('kod_ze_stitku')]||id;
     const dt=v=>{const m=(v||'').match(/(\d+)\. ?(\d+)\. ?(\d{4}) (\d+):(\d+)(?::(\d+))?/);return m?new Date(+m[3],m[2]-1,+m[1],+m[4],+m[5],+(m[6]||0)):new Date()};
-    return {id,cands:id?null:idCandidates(raw),house:c[ix('dum')]||'',flat:c[ix('byt')]||'',room:c[ix('mistnost')]||'',serial:c[ix('cislo_vodomeru')]||'',who:ix('montoval')>=0?c[ix('montoval')]:'',scanned:dt(c[ix('naskenovano')]),raw}})
+    return {id,cands:id?null:idCandidates(raw),house:c[ix('dum')]||'',flat:c[ix('byt')]||'',owner:ix('majitel')>=0?c[ix('majitel')]||'':'',room:c[ix('mistnost')]||'',serial:c[ix('cislo_vodomeru')]||'',who:ix('montoval')>=0?c[ix('montoval')]:'',scanned:dt(c[ix('naskenovano')]),raw}})
 }
 $('fileIn').onchange=async e=>{
   const f=e.target.files[0];e.target.value='';if(!f)return;
