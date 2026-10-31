@@ -175,6 +175,13 @@ main .wrap{padding:8px 16px 150px}
 @media (min-width:900px){.mrow .room{width:110px}}
 .mrow .mk{width:96px;flex-shrink:0;font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (max-width:380px){.mrow .mk{display:none}}
+.zsteps{display:flex;gap:6px}.zsteps span{flex:1;display:flex;align-items:center;gap:6px;padding:8px;border:1.5px solid var(--b2);font-size:14px;color:var(--muted)}
+.zsteps b{width:22px;height:22px;border-radius:999px;display:grid;place-items:center;background:var(--b1);color:var(--ink);font-size:12px}
+.zsteps .act{border-color:var(--red);color:var(--ink);font-weight:700}.zsteps .act b{background:var(--red);color:#fff}.zsteps .ok b{background:var(--ok);color:#fff}
+.zbig{display:flex;align-items:baseline;gap:12px}.zbig b{font-size:56px;font-weight:900;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}.zbig span{color:var(--muted);font-size:15px}
+.zmeter{height:8px;background:var(--b1)}.zmeter i{display:block;height:100%;background:var(--red);transition:width .9s linear}
+.zcount{font-size:16px;color:var(--body)}.zcount b{font-size:22px;color:var(--ink)}
+.okbox{background:#e8f6ee;border:1px solid #b9e3c9;color:#145c35;padding:10px 12px;font-size:15px}
 </style>
 </head>
 <body>
@@ -218,7 +225,7 @@ main .wrap{padding:8px 16px 150px}
 
 <footer class="bottom"><div class="wrap">
   <button class="scanbtn" id="bScan"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M7 12h10"/></svg><span id="scanLbl">skenovat</span></button>
-  <button class="linkbtn" id="bFinish">souhrn inventury a sdílení tabulky</button>
+  <div style="display:flex;justify-content:center;gap:18px;flex-wrap:wrap"><button class="linkbtn" id="bFinish">souhrn inventury a tabulka</button><button class="linkbtn" id="bZas">načíst zásilku rádiem</button></div>
 </div></footer>
 
 <div id="toasts"></div>
@@ -263,6 +270,7 @@ main .wrap{padding:8px 16px 150px}
 <div class="sheet" id="shDetail" hidden><div class="panel" id="detailBody"></div></div>
 <div class="sheet" id="shFinish" hidden><div class="panel" id="finishBody"></div></div>
 <div class="sheet" id="shMenu" hidden><div class="panel menu" id="menuBody"></div></div>
+<div class="sheet" id="shZas" hidden><div class="panel" id="zasBody"></div></div>
 <div class="sheet" id="shDiag" hidden><div class="panel" id="diagBody"></div></div>
 <div class="sheet" id="shHelp" hidden><div class="panel">
   <div class="phead"><div><div class="eyebrow">nápověda</div><h2>jak na inventuru</h2></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>
@@ -271,6 +279,7 @@ main .wrap{padding:8px 16px 150px}
     <div class="li"><span><b>Evidence.</b> Menu ⋮ → načíst evidenci: soubor CSV nebo TXT se seznamem čísel (např. export ze skladového systému). Pak uvidíte „chybí“ a „navíc“.</span></div>
     <div class="li"><span><b>Dlouhé kódy.</b> U štítku s víc než 8 číslicemi aplikace vybere rádiové ID podle evidence nebo vysílání. Jinak ho určíte v detailu.</span></div>
     <div class="li"><span><b>EWR-TD.</b> Nepovinné. Ukáže, které moduly vysílají, a v „nejde přečíst?“ nabídne měřidla, která vysílají a nejsou v inventuře.</span></div>
+    <div class="li"><span><b>Zásilka rádiem.</b> Když štítky nejdou naskenovat (krabice): v kovovém kontejneru načtěte nejdřív pozadí (výchozí 10 min), pak přivezte paletu a načtěte zásilku (30 min). Moduly zásilky = nové oproti pozadí. Vyžaduje EWR-TD.</span></div>
     <div class="li"><span><b>Víc lidí.</b> Každý skenuje svou část, pak si záznamy předáte: menu ⋮ → předat / převzít (QR nebo soubor).</span></div>
     <div class="li"><span><b>Prohlížeč.</b> Chrome na Androidu a počítači, Edge na počítači. Na iPhonu prohlížeč Bluefy.</span></div>
   </div>
@@ -321,7 +330,7 @@ function decode(fr){
   const o={t:new Date(),hex:hex(fr)};
   if(fr.length<11){o.bad=true;return o}
   o.man=manuf(fr[2],fr[3]);o.id=hex(Array.from(fr.slice(4,8)).reverse());o.ver=fr[8];o.type=fr[9];o.ci=fr[10];
-  if(o.ci===0x7A&&fr.length>=15)o.status=fr[12];else if(o.ci===0x72&&fr.length>=23)o.status=fr[20];
+  if(o.ci===0x7A&&fr.length>=15){o.acc=fr[11];o.status=fr[12];o.enc=((fr[13]|fr[14]<<8)>>8)&0x1F}else if(o.ci===0x72&&fr.length>=23){o.acc=fr[19];o.status=fr[20];o.enc=((fr[21]|fr[22]<<8)>>8)&0x1F}
   return o;
 }
 function flagsOf(st){if(st==null)return[];const f=[];if(st&4)f.push('slabá baterie');if(st&8)f.push('trvalá chyba');if(st&16)f.push('dočasná chyba');if((st&3)===2)f.push('chyba měřidla');return f}
@@ -492,6 +501,7 @@ function startDemo(){
     // naskenovaná měřidla v demu „vysílají“ s náhodným zpožděním (kromě každého pátého)
     const pend=items.filter(r=>!r.first&&Date.now()-r.scanned>4000&&Math.abs(hashc(r.uid))%5!==0);
     if(pend.length&&Math.random()<.5){const r=pend[0];const id=r.id||(r.cands||[])[0];if(id){onFrame(demoFrame(id,'APA',7,5,58));return}}
+    if(zas.phase==='ship'&&Math.random()<.6){if(!demo.pallet)demo.pallet=Array.from({length:24},(_,i)=>String(70500000+i*37));const id=demo.pallet[Math.floor(Math.random()*demo.pallet.length)];onFrame(demoFrame(id,'APA',0x16,5,45+Math.floor(Math.random()*15)));return}
     const p=demo.pool[Math.floor(Math.random()*demo.pool.length)];onFrame(demoFrame(p.id,p.man,p.type,p.ver,p.r+Math.floor(Math.random()*6)))},700);
   toast('Demo: simulované EWR-TD. Část naskenovaných měřidel začne „vysílat“.');dirty=true;
 }
@@ -506,7 +516,8 @@ function onFrame(u){
   if(o.bad)return;
   const k=o.man+'-'+o.id;let m=meters.get(k);
   if(!m){m={k,id:o.id,man:o.man,first:o.t,count:0};meters.set(k,m)}
-  Object.assign(m,{type:o.type,ver:o.ver,status:o.status,rssi:o.rssi,last:o.t});m.count++;
+  Object.assign(m,{type:o.type,ver:o.ver,status:o.status,rssi:o.rssi,last:o.t,enc:o.enc});m.count++;
+  zasFrame(o);
   let r=items.find(x=>x.id===o.id);
   if(!r){r=items.find(x=>!x.id&&x.cands&&x.cands.includes(o.id));if(r){r.id=o.id;r.cands=null;learnRule(r.raw,o.id);saveItems()}}
   if(r){const firstTime=!r.first;Object.assign(r,{last:o.t,rssi:o.rssi,man:o.man,type:o.type,status:o.status,first:r.first||o.t});r.count=(r.count||0)+1;if(firstTime){freshUid=r.uid;saveItems()}}
@@ -733,6 +744,8 @@ function renderMenu(){
       <div class="acts"><label class="field" style="flex:1">režim příjmu<select id="mMode">${Object.entries(MODES).map(([k,v])=>`<option value="${k}" ${+k===settings.mode?'selected':''}>${v}</option>`).join('')}</select></label>
         <button class="btn" id="mRx" style="align-self:end;height:46px">${s.rx?'zastavit příjem':'spustit příjem'}</button></div>`
       :`<button class="btn" id="mConn" style="height:50px">připojit EWR-TD</button>`}
+    <div class="eyebrow" style="margin-top:6px">zásilka pro zákazníka</div>
+    <button class="mi" id="mZas">načíst zásilku rádiem${zas.phase==='bg'?' – běží pozadí':zas.phase==='ship'?' – běží načítání':zas.phase==='gap'?' – čeká na paletu':zas.phase==='done'?' – výsledek: '+pl(zasResult().length,'modul','moduly','modulů'):' (pozadí → zásilka)'}</button>
     <div class="eyebrow" style="margin-top:6px">evidence</div>
     <button class="mi" id="mEvid">${evid?`načíst jinou evidenci (teď: ${esc(evid.name)}, ${pl(evid.rows.length,'položka','položky','položek')})`:'načíst evidenci (CSV, TXT)'}</button>
     ${evid?'<button class="mi" id="mEvidDel">odebrat evidenci</button>':''}
@@ -760,7 +773,7 @@ function renderMenu(){
   on('mFileOut',fileOut);on('mFileIn',()=>$('fileIn').click());on('mHelp',()=>openSheet('shHelp'));
   on('mAddAir',()=>{const list=[...meters.values()].filter(m=>!items.some(r=>r.id===m.id));if(!confirm(`Přidat ${pl(list.length,'zachycené měřidlo','zachycená měřidla','zachycených měřidel')} do pozice ${inv.pos}?\n\nPozor: rádio dosáhne i za zeď, přidávejte jen ve skladu.`))return;
     let n=0;list.forEach(m=>{if(addCode(m.id,'radio').ok)n++});closeSheets();toast(`Přidáno ${pl(n,'měřidlo','měřidla','měřidel')} z rádia.`)});
-  on('mDiag',openDiag);
+  on('mDiag',openDiag);on('mZas',openZas);
   on('mDemo',()=>{closeSheets();isDemo?stopDemo():startDemo()});
   on('mDisc',()=>{closeSheets();disconnect()});
   on('mClearAir',()=>{if(!confirm('Vymazat všechna zachycená vysílání?\n\nNaskenované záznamy zůstanou.'))return;meters.clear();raw=[];LS('ewrsk_meters',{meters:[]});closeSheets();dirty=true;toast('Vysílání vymazána.')});
@@ -867,6 +880,124 @@ $('fileIn').onchange=async e=>{
   catch(err){toast('Soubor se nepodařilo načíst: '+err.message,{err:true})}
 };
 
+
+// ================= načtení zásilky rádiem: pozadí → zásilka → rozdíl =================
+// Fáze: setup → bg (pozadí) → gap (přivézt paletu) → ship (zásilka) → done
+const ZAS0={name:'',expected:'',bgMin:10,shMin:30,phase:'setup',bgStart:0,bgEnd:0,shStart:0,shEnd:0,bg:{},sh:{}};
+let zas=Object.assign({},ZAS0,LS('ewrsk_zas')||{});
+let zasSaveT=null;const saveZas=(now)=>{if(now){clearTimeout(zasSaveT);zasSaveT=null;LS('ewrsk_zas',zas);return}if(!zasSaveT)zasSaveT=setTimeout(()=>{zasSaveT=null;LS('ewrsk_zas',zas)},3000)};
+let zasSort=LS('ewrsk_zassort')||{k:'last',dir:-1};
+const encName=e=>e==null?'–':e===0?'bez šifrování':e===5?'AES (mód 5)':e===7?'AES (mód 7)':'mód '+e;
+function zasFrame(o){
+  const ph=zas.phase;if(ph!=='bg'&&ph!=='ship')return;
+  const now=+o.t;if(ph==='bg'&&(now<zas.bgStart||now>zas.bgEnd))return;if(ph==='ship'&&(now<zas.shStart||now>zas.shEnd))return;
+  const map=ph==='bg'?zas.bg:zas.sh,k=o.man+'-'+o.id;let m=map[k];
+  if(!m){m=map[k]={id:o.id,man:o.man,type:o.type,ver:o.ver,enc:o.enc,first:now,last:now,n:0,rl:o.rssi,rmax:o.rssi,rsum:0,st:o.status,acc:o.acc};
+    if(ph==='ship'&&!zas.bg[k]){beep(0);vib(40)}}
+  m.n++;m.last=now;m.rl=o.rssi;m.rsum+=o.rssi;if(o.rssi>m.rmax)m.rmax=o.rssi;if(o.status!=null)m.st=o.status;if(o.enc!=null)m.enc=o.enc;m.type=o.type;m.ver=o.ver;
+  saveZas();
+}
+const zasResult=()=>Object.entries(zas.sh).filter(([k])=>!zas.bg[k]).map(([k,m])=>Object.assign({k},m));
+const zasExcluded=()=>Object.keys(zas.sh).filter(k=>zas.bg[k]).length;
+const mmss=ms=>{ms=Math.max(0,ms);const s=Math.round(ms/1000);return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`};
+function zasTick(){
+  const now=Date.now();
+  if(zas.phase==='bg'&&now>=zas.bgEnd){zas.phase='gap';saveZas(true);beep(1);vib([200,100,200]);toast('Pozadí načteno. Přivezte paletu a spusťte načítání zásilky.',{ms:9000})}
+  if(zas.phase==='ship'&&now>=zas.shEnd){zas.phase='done';saveZas(true);beep(1);vib([200,100,200]);toast(`Zásilka načtena: ${pl(zasResult().length,'modul','moduly','modulů')}.`,{ms:9000});zasSort={k:'last',dir:-1}}
+  if(!$('shZas').hidden)drawZas();
+}
+setInterval(zasTick,1000);
+const ZAS_COLS=[['i','#'],['id','rádiové ID'],['man','výrobce'],['type','typ'],['ver','verze'],['enc','šifrování'],['n','telegramů'],['rl','signál'],['rmax','max'],['first','první'],['last','poslední'],['ivl','interval'],['st','hlášení']];
+function zasRows(){
+  const rows=zasResult().map(m=>Object.assign(m,{ivl:m.n>1?Math.round((m.last-m.first)/(m.n-1)/1000):null}));
+  const val=(m,k)=>k==='man'?manName(m.man):k==='type'?typeName(m.type):k==='st'?flagsOf(m.st).join(', '):k==='i'?m.first:m[k];
+  rows.sort((a,b)=>{const x=val(a,zasSort.k),y=val(b,zasSort.k);return ((x??-1e15)>(y??-1e15)?1:(x??-1e15)<(y??-1e15)?-1:0)*zasSort.dir||(b.last-a.last)});
+  return rows;
+}
+function zasCsv(){
+  const cl=v=>String(v??'').replace(/[;\r\n]/g,',');
+  const rows=zasRows().map((m,i)=>[zas.name,i+1,m.id,manName(m.man),m.man,typeName(m.type),m.ver,encName(m.enc),m.n,m.rl,m.rmax,Math.round(m.rsum/m.n),dtm(new Date(m.first)),dtm(new Date(m.last)),m.ivl??'',flagsOf(m.st).join(', ')].map(cl).join(';'));
+  return '﻿'+['zakazka;poradi;radiove_id;vyrobce;kod_vyrobce;typ;verze;sifrovani;pocet_telegramu;signal_posledni_dbm;signal_max_dbm;signal_prumer_dbm;prvni_prijem;posledni_prijem;interval_s;hlaseni',...rows].join('\r\n');
+}
+function zasStart(phase){
+  if(!connected()){toast('Nejdřív připojte EWR-TD.',{err:true});connect();return}
+  if(devState&&!devState.rx)setRx(true);
+  const now=Date.now();
+  if(phase==='bg'){zas.bg={};zas.sh={};zas.bgStart=now;zas.bgEnd=now+zas.bgMin*60000;zas.phase='bg'}
+  else{zas.sh={};zas.shStart=now;zas.shEnd=now+zas.shMin*60000;zas.phase='ship'}
+  saveZas(true);drawZas(true);
+}
+function drawZas(force){
+  const b=$('zasBody'),now=Date.now(),ph=zas.phase,E=zas.expected?+zas.expected:0;
+  // průběžná aktualizace bez překreslení (aby nepřišlo o klepnutí ani rozepsaný text)
+  if(!force&&b.dataset.ph===ph&&b.dataset.conn===String(connected())){
+    if(ph==='bg'||ph==='ship'){const end=ph==='bg'?zas.bgEnd:zas.shEnd,st=ph==='bg'?zas.bgStart:zas.shStart;
+      $('zT').textContent=mmss(end-now);$('zM').style.width=Math.min(100,100*(now-st)/(end-st))+'%';$('zC').innerHTML=zasCountHtml(ph,E);
+      if(ph==='ship')$('zL').innerHTML=zasLiveList()}
+    return}
+  const head=`<div class="phead"><div><div class="eyebrow">načtení zásilky rádiem</div><h2>${esc(zas.name||'nová zásilka')}</h2></div><button class="iconbtn" data-close aria-label="Zavřít">✕</button></div>`;
+  const steps=`<div class="zsteps">${[['1','pozadí',['bg'].includes(ph),['gap','ship','done'].includes(ph)],['2','zásilka',ph==='ship',ph==='done'],['3','výsledek',ph==='done',false]].map(([n,t,act,ok])=>`<span class="${act?'act':ok?'ok':''}"><b>${ok?'✓':n}</b>${t}</span>`).join('')}</div>`;
+  const conn=connected()?'':`<div class="warnbox">EWR-TD není připojené. <button class="btn sm primary" id="zConn" style="margin-left:6px">připojit</button></div>`;
+  const keep=ph==='setup'&&b.querySelector('#zName')?{n:$('zName').value,e:$('zExp').value,bg:$('zBg').value,sh:$('zSh').value}:null;
+  let body='';
+  if(ph==='setup'){
+    body=`<div style="font-size:15px">Změří rádiové pozadí místa, pak moduly po přivezení palety. Moduly zásilky = zachycené ve 2. kroku, které nebyly v pozadí. Nejlépe v kovovém kontejneru mimo dosah skladu.</div>
+      <div class="fields">
+        <label class="field full">zakázka / zákazník<input id="zName" value="${esc(zas.name)}" placeholder="např. SVJ Lipová 12"></label>
+        <label class="field">očekávaný počet<input id="zExp" inputmode="numeric" value="${esc(zas.expected)}" placeholder="nepovinné"></label>
+        <label class="field">pozadí (min)<input id="zBg" inputmode="numeric" value="${zas.bgMin}"></label>
+        <label class="field">zásilka (min)<input id="zSh" inputmode="numeric" value="${zas.shMin}"></label>
+      </div>${conn}
+      <div class="acts" style="flex-direction:column"><button class="btn primary" id="zGo" style="height:54px">1. spustit načítání pozadí</button>
+      <span style="font-size:13px;color:var(--muted)">Kontejner musí být prázdný, bez palety pro zákazníka. Telefon nechte s rozsvíceným displejem, aplikaci nezavírejte.</span></div>`;
+  }else if(ph==='bg'){
+    body=`${conn}<div class="zbig"><b id="zT">${mmss(zas.bgEnd-now)}</b><span>zbývá · pozadí</span></div>
+      <div class="zmeter"><i id="zM" style="width:${Math.min(100,100*(now-zas.bgStart)/(zas.bgEnd-zas.bgStart))}%"></i></div>
+      <div class="zcount" id="zC">${zasCountHtml('bg',E)}</div>
+      <div class="acts"><button class="btn grow" id="zEnd">ukončit pozadí dříve</button><button class="btn danger" id="zReset">zrušit</button></div>`;
+  }else if(ph==='gap'){
+    body=`<div class="zbig"><b>✓</b><span>pozadí hotovo · ${pl(Object.keys(zas.bg).length,'modul','moduly','modulů')}</span></div>
+      <div style="font-size:16px;color:var(--ink)">Přivezte paletu vodoměrů pro zákazníka do kontejneru a spusťte načítání zásilky.</div>${conn}
+      <div class="acts" style="flex-direction:column"><button class="btn primary" id="zGo2" style="height:54px">2. spustit načítání zásilky (${zas.shMin} min)</button><button class="btn" id="zReset">začít znovu</button></div>`;
+  }else if(ph==='ship'){
+    body=`${conn}<div class="zbig"><b id="zT">${mmss(zas.shEnd-now)}</b><span>zbývá · zásilka</span></div>
+      <div class="zmeter"><i id="zM" style="width:${Math.min(100,100*(now-zas.shStart)/(zas.shEnd-zas.shStart))}%"></i></div>
+      <div class="zcount" id="zC">${zasCountHtml('ship',E)}</div>
+      <div class="acts"><button class="btn grow" id="zEnd">ukončit zásilku dříve</button><button class="btn danger" id="zReset">zrušit</button></div>
+      <div class="list" id="zL" style="max-height:28vh;overflow:auto">${zasLiveList()}</div>`;
+  }else{
+    const rows=zasRows(),n=rows.length,diff=E?n-E:0;
+    body=`<div class="zbig"><b>${n}</b><span>${pl(n,'modul','moduly','modulů').replace(/^\d+ /,'')} zásilky${E?` · očekáváno ${E}`:''}</span></div>
+      ${E&&diff!==0?`<div class="${diff<0?'errbox':'warnbox'}">${diff<0?`Chybí ${-diff} – některé moduly nevysílaly nebo byly i v pozadí. Prodlužte načítání nebo zkontrolujte paletu.`:`O ${diff} víc, než se čekalo – v dosahu mohla být i jiná měřidla. Zkontrolujte moduly s jedním telegramem a slabým signálem.`}</div>`:E?'<div class="okbox">Počet souhlasí s objednávkou.</div>':''}
+      <div style="font-size:13px;color:var(--muted)">Pozadí: ${pl(Object.keys(zas.bg).length,'modul','moduly','modulů')} · vyloučeno ${zasExcluded()} · načítání ${dtm(new Date(zas.shStart))}–${new Date(zas.shEnd).toLocaleTimeString('cs-CZ',{hour12:false})}. Řazení: klepněte na záhlaví sloupce.</div>
+      <div class="tscroll"><table class="tbl"><thead><tr>${ZAS_COLS.map(([k,t])=>`<th data-sort="${k}" style="cursor:pointer;user-select:none;${k===zasSort.k?'color:var(--ink)':''}">${t}${k===zasSort.k?(zasSort.dir>0?' ▲':' ▼'):''}</th>`).join('')}</tr></thead><tbody>
+      ${rows.map((m,i)=>`<tr${m.n<2?' style="color:var(--muted)"':''}><td>${i+1}</td><td class="mono" style="color:var(--ink)">${m.id}</td><td>${esc(manName(m.man))}</td><td>${esc(typeName(m.type))}</td><td>${m.ver}</td><td>${encName(m.enc)}</td><td>${m.n}</td><td>${m.rl} dBm</td><td>${m.rmax} dBm</td><td>${new Date(m.first).toLocaleTimeString('cs-CZ',{hour12:false})}</td><td>${new Date(m.last).toLocaleTimeString('cs-CZ',{hour12:false})}</td><td>${m.ivl!=null?m.ivl+' s':'–'}</td><td>${esc(flagsOf(m.st).join(', '))}</td></tr>`).join('')}</tbody></table></div>
+      <div class="acts" style="flex-direction:column"><button class="btn primary" id="zCsv" style="height:54px" ${n?'':'disabled'}>sdílet tabulku (e-mail, Teams…)</button>
+      <button class="btn" id="zToInv" ${n?'':'disabled'}>přidat do inventury jako pozici „${esc(zas.name||'zásilka')}“</button>
+      <button class="btn" id="zMore">načítat zásilku znovu (pozadí zůstane)</button><button class="btn danger" id="zReset">nové načtení</button></div>`;
+  }
+  const sc=b.querySelector('.tscroll'),st=sc?sc.scrollTop:0;
+  b.innerHTML=head+steps+body;b.dataset.ph=ph;b.dataset.conn=String(connected());
+  const sc2=b.querySelector('.tscroll');if(sc2)sc2.scrollTop=st;
+  if(keep){$('zName').value=keep.n;$('zExp').value=keep.e;$('zBg').value=keep.bg;$('zSh').value=keep.sh}
+  const on=(id,f)=>{const e=$(id);if(e)e.onclick=f};
+  on('zConn',connect);
+  on('zGo',()=>{zas.name=$('zName').value.trim();zas.expected=$('zExp').value.replace(/\D/g,'');const num=(v,d)=>{const x=parseFloat(String(v).replace(',','.'));return isNaN(x)?d:x};zas.bgMin=Math.max(0,num($('zBg').value,10));zas.shMin=Math.max(0.1,num($('zSh').value,30));
+    if(zas.bgMin===0){zas.bg={};zas.phase='gap';saveZas(true);drawZas(true);return}zasStart('bg')});
+  on('zGo2',()=>zasStart('ship'));
+  on('zEnd',()=>{if(zas.phase==='bg')zas.bgEnd=Date.now();else zas.shEnd=Date.now();zasTick()});
+  on('zMore',()=>{if(!confirm('Načíst zásilku znovu? Dosavadní výsledek se nahradí, pozadí zůstane.'))return;zasStart('ship')});
+  on('zReset',()=>{if(!confirm('Zrušit načítání a začít znovu? Naměřená data se smažou.'))return;zas=Object.assign({},ZAS0,{name:zas.name,expected:zas.expected,bgMin:zas.bgMin,shMin:zas.shMin,bg:{},sh:{}});saveZas(true);drawZas(true)});
+  on('zCsv',()=>shareCsv(fname('zasilka_'+(zas.name||'radio')),zasCsv(),'Zásilka '+zas.name));
+  on('zToInv',()=>{const pos=zas.name||'zásilka';if(!inv.positions.includes(pos))inv.positions.push(pos);const prev=inv.pos;inv.pos=pos;let n=0;zasRows().forEach(m=>{if(addCode(m.id,'radio').ok)n++});inv.pos=prev;saveInv();dirty=true;toast(`Do inventury přidáno ${pl(n,'měřidlo','měřidla','měřidel')} (pozice ${pos}).`)});
+  b.querySelectorAll('[data-sort]').forEach(th=>th.onclick=()=>{const k=th.dataset.sort;if(k===zasSort.k)zasSort.dir=-zasSort.dir;else zasSort={k,dir:['id','man','type','enc','st','i'].includes(k)?1:-1};LS('ewrsk_zassort',zasSort);drawZas(true)});
+}
+function zasCountHtml(ph,E){if(ph==='bg'){const n=Object.keys(zas.bg).length;return `<b>${n}</b> ${pl(n,'modul','moduly','modulů').replace(/^\d+ /,'')} v pozadí (vyloučí se)`}
+  const n=zasResult().length;return `<b>${n}</b>${E?` z ${E} očekávaných modulů`:' '+pl(n,'modul','moduly','modulů').replace(/^\d+ /,'')} zásilky · ${zasExcluded()} vyloučeno (pozadí)`+(E&&n>=E?'<div class="okbox" style="margin-top:8px">Nalezen očekávaný počet. Můžete ukončit dříve, nebo nechat doběhnout.</div>':'')}
+function zasLiveList(){return zasResult().sort((a,b)=>b.last-a.last).slice(0,40).map(m=>`<div class="li" style="font-size:14px"><span class="mono" style="color:var(--ink)">${m.id}</span><span style="flex:1;color:var(--muted)">${esc(manName(m.man))} · ${esc(typeName(m.type))}</span><span>${m.rl} dBm</span></div>`).join('')}
+function openZas(){drawZas(true);openSheet('shZas')}
+
+$('bZas').onclick=openZas;
 
 // ================= start =================
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
