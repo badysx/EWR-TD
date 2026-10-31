@@ -31,11 +31,11 @@ button{cursor:pointer}
 #tLabel{white-space:nowrap}
 .top .st{min-width:0;flex-shrink:1}
 @media (max-width:440px){.top .wrap{gap:6px;padding:0 0 0 12px}#bDisconnect,#bConnect{padding:0 9px;font-size:14px;height:34px}.top .st{font-size:14px}.rxw{margin-left:3px;padding:1px 5px}#bMenu{width:38px}}
-.bat{position:relative;display:inline-flex;align-items:center;justify-content:center;width:52px;height:24px;border:2px solid var(--ink);border-radius:6px;flex-shrink:0;margin-right:5px}
-.bat::after{content:"";position:absolute;right:-6px;top:6px;width:3px;height:8px;background:var(--ink);border-radius:0 2px 2px 0}
-.bat i{position:absolute;left:2px;top:2px;bottom:2px;border-radius:2px;background:#8fd6ae}
+.bat{position:relative;display:inline-flex;align-items:center;justify-content:center;width:26px;height:12px;border:1px solid var(--ink);border-radius:3px;flex-shrink:0;margin-right:4px}
+.bat::after{content:"";position:absolute;right:-3px;top:3px;width:2px;height:4px;background:var(--ink);border-radius:0 1px 1px 0}
+.bat i{position:absolute;left:1px;top:1px;bottom:1px;border-radius:1px;background:#8fd6ae}
 .bat.mid i{background:#fbd38a}.bat.low i{background:#f5a3a3}.bat.low{border-color:var(--bad)}.bat.low::after{background:var(--bad)}
-.top .bat b{position:relative;font-size:13px;font-weight:800;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.top .bat b{position:relative;font-size:6.5px;font-weight:800;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
 .rxw{display:inline-block;margin-left:4px;padding:1px 6px;border-radius:4px;transition:background .6s,color .6s}
 .rxw.flash{background:var(--ok);color:#fff;transition:none}
 .iconbtn{width:44px;height:44px;border:0;background:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -408,7 +408,7 @@ const connected=()=>isDemo||!!(dev&&dev.gatt&&dev.gatt.connected&&chCmd);
 function setTop(kind,txt){
   const d=$('tDot'),info=$('tInfo'),rx=$('tRx');
   const bat=$('tBat');
-  if(isLead()&&connected()&&devState&&devState.bat!=null){const v=Math.max(0,Math.min(100,devState.bat));bat.hidden=false;bat.className='bat lead-only'+(v<20?' low':v<=50?' mid':'');$('tBatFill').style.width=`calc(${v}% - 4px)`;$('tBatTxt').textContent=v+' %';bat.title='baterie EWR-TD '+v+' %'}else bat.hidden=true;
+  if(isLead()&&connected()&&devState&&devState.bat!=null){const v=Math.max(0,Math.min(100,devState.bat));bat.hidden=false;bat.className='bat lead-only'+(v<20?' low':v<=50?' mid':'');$('tBatFill').style.width=`calc(${v}% - 2px)`;$('tBatTxt').textContent=v+' %';bat.title='baterie EWR-TD '+v+' %'}else bat.hidden=true;
   if(!isLead()){$('tLabel').textContent='montážník';info.textContent=settings.who||'';rx.hidden=true;$('bConnect').hidden=true;$('bDisconnect').hidden=true;return}
   $('tLabel').textContent='EWR-TD';
   if(kind){d.className='dot'+(kind==='err'?' err':'');info.textContent=txt;rx.hidden=true;return}
@@ -878,7 +878,7 @@ $('fileIn').onchange=async e=>{
 
 // ================= vizualizace příjmu =================
 let blinkT=null;
-function blink(){const d=$('actDot'),r=$('tRx');d&&d.classList.add('on');r&&r.classList.add('flash');clearTimeout(blinkT);blinkT=setTimeout(()=>{d&&d.classList.remove('on');r&&r.classList.remove('flash')},250)}
+function blink(){const d=$('actDot'),r=$('tRx');d&&d.classList.add('on');r&&r.classList.add('flash');clearTimeout(blinkT);blinkT=setTimeout(()=>{d&&d.classList.remove('on');r&&r.classList.remove('flash')},3000)}
 function renderAct(){
   if(!$('actStrip'))return;
   const on=connected()&&devState&&devState.rx;
