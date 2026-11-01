@@ -1,6 +1,6 @@
 // Mazat jen vlastní cache – obě aplikace jsou na stejném webu a sdílejí úložiště cache.
 // Offline cache: aplikace se otevře i bez internetu; při připojení se načte nejnovější verze.
-const CACHE = 'ewrtd-v39';
+const CACHE = 'ewrtd-v40';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'ewrtd-montaz-192.png', 'ewrtd-montaz-512.png', 'barcode.js', 'zxing_reader.wasm', 'qr.js'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(n => n.startsWith('ewrtd-') && n !== CACHE).map(n => caches.delete(n))))); self.clients.claim(); });

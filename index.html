@@ -179,6 +179,9 @@ main .wrap{padding:8px 16px 150px}
 </style>
 </head>
 <body>
+<!-- úvodní logo přes celou obrazovku na 1,5 s -->
+<div id="splash" style="position:fixed;inset:0;z-index:9999;background:#ffffff;display:flex;align-items:center;justify-content:center;transition:opacity .3s"><img src="ewrtd-montaz-512.png" alt="EWR-TD montáž" style="width:min(80vw,80vh,512px);height:auto"></div>
+<script>setTimeout(()=>{const s=document.getElementById('splash');if(!s)return;s.style.opacity='0';s.style.pointerEvents='none';setTimeout(()=>s.remove(),350)},1500)</script>
 
 <header class="top"><div class="wrap">
   <span class="bat lead-only" id="tBat" hidden role="img" aria-label="baterie EWR-TD"><i></i><i></i><i></i><i></i><i></i></span><span class="dot lead-only" id="tDot"></span>
@@ -310,8 +313,8 @@ const MAN={APA:'Apator',KAM:'Kamstrup',DME:'Diehl',HYD:'Diehl',QDS:'Qundis',SON:
 const ROOMS=['koupelna','WC','kuchyně','chodba','pokoj','obývák','komora','pracovna'];
 const typeName=t=>t==null?'':(MEDIUM[t]||'typ 0x'+h2(t));
 const manName=m=>m?(MAN[m]||m):'';
-const APP_VER='1.0';    // verze pro uživatele (menu, poslední řádek)
-const APP_BUILD=39;   // interní číslo sestavení – posílá se s předávanými záznamy kvůli kompatibilitě
+const APP_VER='1.1';    // verze pro uživatele (menu, poslední řádek)
+const APP_BUILD=40;   // interní číslo sestavení – posílá se s předávanými záznamy kvůli kompatibilitě
 const WAIT_MIN=10;   // po kolika minutách bez vysílání je měřidlo „problém“
 
 // ================= stav =================
