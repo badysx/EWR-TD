@@ -6,6 +6,7 @@
 <title>EWR-TD montáž</title>
 <meta name="theme-color" content="#ffffff">
 <meta name="color-scheme" content="light">
+<script>/* adresa „…/“ → „…/index.html“, aby stránka ležela v rozsahu své aplikace */if(location.pathname.endsWith("/"))history.replaceState(null,"",location.pathname+"index.html"+location.search+location.hash)</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="ewrtd-montaz-192.png">
 <link rel="apple-touch-icon" href="ewrtd-montaz-192.png">
@@ -307,7 +308,7 @@ const MAN={APA:'Apator',KAM:'Kamstrup',DME:'Diehl',HYD:'Diehl',QDS:'Qundis',SON:
 const ROOMS=['koupelna','WC','kuchyně','chodba','pokoj','obývák','komora','pracovna'];
 const typeName=t=>t==null?'':(MEDIUM[t]||'typ 0x'+h2(t));
 const manName=m=>m?(MAN[m]||m):'';
-const APP_VER=35;    // verze aplikace – zobrazí se v menu, posílá se s předávanými záznamy
+const APP_VER=36;    // verze aplikace – zobrazí se v menu, posílá se s předávanými záznamy
 const WAIT_MIN=10;   // po kolika minutách bez vysílání je měřidlo „problém“
 
 // ================= stav =================
